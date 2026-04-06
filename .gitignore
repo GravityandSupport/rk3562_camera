@@ -1,0 +1,36 @@
+# 1. 忽略所有文件
+*
+
+# 2. 不要忽略文件夹（否则无法进入子目录寻找文件）
+!*/
+
+# 3. 允许跟踪的文件类型
+!*.cpp
+!*.c
+!*.hpp
+!*.h
+
+# 4. 允许跟踪 .gitignore 自身
+!.gitignore
+
+# 5. 允许说明文档（可选）
+!*.md
+
+
+# 过滤 Qt 自动生成的 moc 文件
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+
+# 过滤 Qt Creator 的项目用户配置文件
+*.pro.user
+*.pro.user.*
+
+# 过滤构建目录（通常 Qt Creator 默认生成的构建文件夹）
+build-*/
+# 或者如果你手动创建了 build 文件夹
+build/
+
+# 过滤 qmake 生成的 Makefile
+Makefile*
