@@ -21,6 +21,8 @@ public:
     TimerManager();
     ~TimerManager();
 
+    static TimerManager& getInstance() {static TimerManager instance; return instance;}
+    
     // 创建定时器（不立即启动）
     TimerId createTimer(std::chrono::nanoseconds first_fire_delay,
                         std::chrono::nanoseconds interval,

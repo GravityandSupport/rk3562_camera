@@ -77,12 +77,15 @@ int V4L2_NV12_Capture::queue_dmabuf(uint32_t idx){
     }
     return 0;
 }
-DrmDumbBuffer* V4L2_NV12_Capture::get_dmabuf(uint32_t idx){
+DrmDumbBuffer* V4L2_NV12_Capture::acquire_dmabuf(uint32_t idx){
     if(idx>=drm_buffers.size()) { return nullptr;}
-
+    this->ref_array_manage.acquire(idx);
     return drm_buffers[idx];
 }
-
+void V4L2_NV12_Capture::release_dmabuf(uint32_t idx){
+    if(idx>=drm_buffers.size()) { return;}
+    this->ref_array_manage.release(idx);
+}
 bool V4L2_NV12_Capture::threadLoop(){
     int index=-1;
     if(!cam->ThreadSafeBoundedQueue::timed_pop(index, 2000)){

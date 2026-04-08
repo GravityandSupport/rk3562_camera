@@ -27,7 +27,8 @@ public:
     void uninstall_device();
 
     int queue_dmabuf(uint32_t idx);
-    DrmDumbBuffer* get_dmabuf(uint32_t idx);
+    DrmDumbBuffer* acquire_dmabuf(uint32_t idx);
+    void release_dmabuf(uint32_t idx);
 protected:
     virtual bool threadLoop()  override;
 private:
