@@ -293,6 +293,9 @@ void TcpServer::closeConnection(int fd) {
     if (info.heartbeat_timer != 0) {
         TimerManager::getInstance().destroyTimer(info.heartbeat_timer);
     }
+    if (info.timeout_timer != 0) {
+        TimerManager::getInstance().destroyTimer(info.timeout_timer);
+    }
 
     // 通知 Device 断开
     if (info.device) {
