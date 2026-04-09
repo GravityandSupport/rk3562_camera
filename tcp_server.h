@@ -23,6 +23,21 @@
 #include "ThreadSafeBoundedQueue.h"
 #include "safe_thread.h"
 
+enum class DeviceTypeID : int{
+    TYPE_A, TYPE_B,
+    UNKNOWN
+};
+namespace std {
+    template <>
+    struct hash<DeviceTypeID> {
+        size_t operator()(DeviceTypeID t) const {
+            // 将枚举强转为底层整数类型 int，然后调用标准库的 int 哈希
+            return std::hash<int>()(static_cast<int>(t));
+        }
+    };
+}
+DeviceTypeID stringToDeviceType(const std::string& str);
+
 class TcpServer {
 public:
     explicit TcpServer(uint16_t port = 8080);
@@ -34,9 +49,14 @@ public:
     // 停止 TCP 线程
     void stop();
 
-    ThreadSafeBoundedQueue<int> fd_data_queue; // 哪些文件描述符有数据
+    // 工厂注册接口
+    using DeviceCreator = std::function<std::unique_ptr<TcpDevice>()>;
+    void registerDeviceType(const DeviceTypeID& type_id, DeviceCreator creator);
 private:
     std::array<SafeThread, 5> thread_pool; // 微型线程池
+    ThreadSafeBoundedQueue<int> fd_data_queue; // 哪些文件描述符有数据
+
+    std::unordered_map<DeviceTypeID, DeviceCreator> device_factory_; // 工厂映射表
 
     // 连接状态
     enum class ConnState {
@@ -77,7 +97,7 @@ private:
     void startIdentificationTimer(int fd);                  // 启动识别超时定时器（1秒发一次）
     void startHeartbeatTimer(int fd);                       // 启动5秒心跳定时器
 
-    void identifySuccess(int fd, const std::vector<uint8_t>& recog_data);
+    void identifySuccess(int fd, DeviceTypeID deveice_type);
     void closeConnection(int fd);                           // 统一关闭连接（清理定时器 + Device + epoll）
 
     static void setNonBlock(int fd);
