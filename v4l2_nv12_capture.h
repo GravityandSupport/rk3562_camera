@@ -2,6 +2,7 @@
 #define V4L2_NV12_CAPTURE_H
 
 #include <memory>
+#include <unordered_map>
 
 #include "wyrThread.hpp"
 #include "drmdumbbuffer.h"
@@ -9,7 +10,11 @@
 #include "refarray.h"
 #include "videobase.h"
 
-class V4L2_NV12_Capture : public __Thread_t , public VideoBase
+#include "safe_thread.h"
+#include "timermanager.h"
+#include "array"
+
+class V4L2_NV12_Capture :  public VideoBase
 {
 public:
     V4L2_NV12_Capture() = default;
@@ -29,8 +34,7 @@ public:
     int queue_dmabuf(uint32_t idx);
     DrmDumbBuffer* acquire_dmabuf(uint32_t idx);
     void release_dmabuf(uint32_t idx);
-protected:
-    virtual bool threadLoop()  override;
+
 private:
     uint32_t width_, height_;
     uint32_t buffer_num_;
@@ -40,6 +44,9 @@ private:
 
     std::vector<DrmDumbBuffer*> drm_buffers;
     RefArray ref_array_manage;
+
+    std::array<SafeThread, 5> thread_pool; // 微型线程池
+    std::unordered_map<SafeThread*, TimerManager::TimerId> delay_timer;
 };
 
 #endif // V4L2_NV12_CAPTURE_H

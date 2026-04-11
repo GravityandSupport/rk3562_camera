@@ -93,6 +93,7 @@ void TcpServer::stop() {
         tcp_thread_.join();
     }
 
+    fd_data_queue.close(); //清除全部队列
     // 清理所有连接
     std::lock_guard<std::recursive_mutex> lock(conn_mutex_);
     for (auto& p : connections_) {

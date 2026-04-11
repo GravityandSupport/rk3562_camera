@@ -50,12 +50,45 @@ int V4L2_NV12_Capture::start_stream(){
         return -1;
     }
 
+    for(auto& _thread : thread_pool){
+        _thread.start();
+        _thread.set_loop_callback([this](SafeThread* self) ->bool{
+            (void)self;
+            int index=-1;
+            if(!cam->ThreadSafeBoundedQueue::timed_pop(index, 2000)){
+                LOG_DEBUG("取流队列", "timeout");
+                return true;
+            }
+
+            this->ref_array_manage.acquire(index);
+
+            //======================
+            VideoBase::frames_ready(this, index);
+//            LOG_DEBUG("CAPTURE", index);
+            //======================
+
+            auto time_id = TimerManager::getInstance().createTimer(std::chrono::milliseconds(5),
+                                std::chrono::milliseconds(0),
+            [index, this](TimerManager::TimerId i){
+//                LOG_DEBUG("TIME", index, i);
+                this->ref_array_manage.release(index); // 延迟一会再释放，因为防止有些节点申请比较晚，等早到到的时候这里已经释放了
+                TimerManager::getInstance().destroyTimer(i);
+            });
+            TimerManager::getInstance().startTimer(time_id);
+            return true;
+        });
+    }
+
     std::clog << "Streaming started. Waiting for frames...\n";
     return 0;
 }
 void V4L2_NV12_Capture::stop_stream(){
     std::clog << "Stopping stream...\n";
     cam->stop_stream();
+
+    for(auto& _thread : thread_pool){
+        _thread.stop();
+    }
 }
 void V4L2_NV12_Capture::uninstall_device(){
     // 清理：关闭 v4l2 设备，释放 drm buffers
@@ -86,21 +119,21 @@ void V4L2_NV12_Capture::release_dmabuf(uint32_t idx){
     if(idx>=drm_buffers.size()) { return;}
     this->ref_array_manage.release(idx);
 }
-bool V4L2_NV12_Capture::threadLoop(){
-    int index=-1;
-    if(!cam->ThreadSafeBoundedQueue::timed_pop(index, 2000)){
-        LOG_DEBUG("取流队列", "timeout");
-        return true;
-    }
+//bool V4L2_NV12_Capture::threadLoop(){
+//    int index=-1;
+//    if(!cam->ThreadSafeBoundedQueue::timed_pop(index, 2000)){
+//        LOG_DEBUG("取流队列", "timeout");
+//        return true;
+//    }
 
-    this->ref_array_manage.acquire(index);
+//    this->ref_array_manage.acquire(index);
 
-    //======================
-    VideoBase::frames_ready(this, index);
-    LOG_DEBUG("CAPTURE", index);
-    //======================
+//    //======================
+//    VideoBase::frames_ready(this, index);
+//    LOG_DEBUG("CAPTURE", index);
+//    //======================
 
-    this->ref_array_manage.release(index);
+//    this->ref_array_manage.release(index);
 
-    return true;
-}
+//    return true;
+//}

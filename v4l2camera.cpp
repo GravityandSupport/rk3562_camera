@@ -125,6 +125,7 @@ bool V4L2Camera::stop_stream() {
         std::cerr << "VIDIOC_STREAMOFF failed: " << strerror(errno) << "\n";
         return false;
     }
+    ThreadSafeBoundedQueue::close();
     return __Thread_t::requestExitAndWait();
 }
 
