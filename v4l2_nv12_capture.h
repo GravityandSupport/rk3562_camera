@@ -4,7 +4,6 @@
 #include <memory>
 #include <unordered_map>
 
-#include "wyrThread.hpp"
 #include "drmdumbbuffer.h"
 #include "v4l2camera.h"
 #include "refarray.h"

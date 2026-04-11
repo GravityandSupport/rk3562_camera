@@ -116,7 +116,21 @@ bool V4L2Camera::start_stream() {
         std::cerr << "VIDIOC_STREAMON failed: " << strerror(errno) << "\n";
         return false;
     }
-    return __Thread_t::run(dev_.c_str());
+
+    thread_.start();
+    thread_.set_loop_callback([this](SafeThread* self) ->bool{
+        (void)self;
+        uint32_t bytesused = 0;
+        int index = -1;
+        bool ok = dequeue_dmabuf(5000, bytesused, index);
+        if (!ok) {
+            std::clog << "no frame (timeout or interrupted)\n";
+            return true;
+        }
+        ThreadSafeBoundedQueue::push(index);
+        return true;
+    });
+    return true;
 }
 
 bool V4L2Camera::stop_stream() {
@@ -126,21 +140,11 @@ bool V4L2Camera::stop_stream() {
         return false;
     }
     ThreadSafeBoundedQueue::close();
-    return __Thread_t::requestExitAndWait();
-}
-
-bool V4L2Camera::threadLoop(){
-    uint32_t bytesused = 0;
-    int index = -1;
-    bool ok = dequeue_dmabuf(5000, bytesused, index);
-    if (!ok) {
-        std::clog << "no frame (timeout or interrupted)\n";
-        return true;
-    }
-    ThreadSafeBoundedQueue::push(index);
-
+    thread_.stop();
     return true;
 }
+
+
 
 
 

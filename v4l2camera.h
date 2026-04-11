@@ -2,11 +2,11 @@
 #define V4L2CAMERA_H
 
 #include "drmdumbbuffer.h"
-#include "wyrThread.hpp"
+#include "safe_thread.h"
 
 #include "ThreadSafeBoundedQueue.h"
 
-class V4L2Camera : public __Thread_t , public ThreadSafeBoundedQueue<int>
+class V4L2Camera : public ThreadSafeBoundedQueue<int>
 {
 public:
     V4L2Camera():ThreadSafeBoundedQueue(5){}
@@ -23,12 +23,13 @@ public:
 
     bool start_stream();
     bool stop_stream();
-protected:
-    virtual bool threadLoop()  override;
+
 private:
     int fd_;
     uint32_t buffers_count_=10;
     std::string dev_;
+
+    SafeThread thread_;
 };
 
 #endif // V4L2CAMERA_H
