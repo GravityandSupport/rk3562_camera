@@ -31,4 +31,71 @@ flowchart TD
 
 	queue_push --> queue_pop
 	转发到次级接收端 --> 次数归0[摄像头帧引用次数归0]  --> 缓冲区入队
+
+
+
+
+
+
+
+
+
+	subgraph 软件定时器监听列表
+        direction TD
+        subgraph tcp识别类型
+            direction TD
+            发送识别码等待从机回复-->从机发送识别码
+        end
+
+        subgraph tcp心跳
+            定时5秒发送心跳包
+        end
+
+        subgraph tcp超时检测定时器
+            direction TD
+            tcp超时检测-->tcp链接超时[tcp超时未回复心跳包链接断开]
+        end
+    end
+
+    subgraph 软件定时器线程
+        direction TD
+        软件定时器epoll_wait-->软件定时器监听列表
+    end
+
+    subgraph 软件定时器初始化
+        direction TD
+        软件定时器epoll_create1[epoll_create1] --> 软件定时器eventfd[eventfd]
+		软件定时器eventfd[eventfd]-->添加eventfd到epoll[epoll_ctl添加eventfd]
+		添加eventfd到epoll[epoll_ctl添加eventfd]-->软件定时器线程启动
+    end
+
+    软件定时器线程启动-->软件定时器线程
+	
+	subgraph tcp微型线程池
+        direction TD
+		tcp_queue_pop[tcp queue_pop]-->tcp数据传输给对应的类解析
+	end
+	
+    tcp_queue_push-->tcp微型线程池
+
+    subgraph tcp线程
+        tcp_epoll等待
+        tcp有新连接-->tcp识别类型
+        tcp有新连接-->tcp等待识别成功
+        从机发送识别码-->tcp等待识别成功
+        tcp等待识别成功-->tcp实例化对应类对象
+        tcp实例化对应类对象-->tcp启动心跳检测
+        tcp启动心跳检测-->tcp心跳
+        tcp启动心跳检测-->tcp超时检测定时器
+
+        tcp从机有数据过来-->tcp_queue_push[tcp queue_push]
+        tcp从机有数据过来-->tcp超时检测定时器
+
+        tcp从设备链接断开-->析构对应的类
+        tcp链接超时-->tcp从设备链接断开
+
+        tcp_epoll等待-->tcp有新连接
+        tcp_epoll等待-->|类型已经成功识别| tcp从机有数据过来
+        tcp_epoll等待-->|超时无数据| tcp从设备链接断开
+    end
 ```

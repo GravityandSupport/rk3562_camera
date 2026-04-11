@@ -1,5 +1,27 @@
 #include "tcp_server.h"
 
+DeviceTypeID stringToDeviceType(const std::string& str) {
+    static const std::vector<std::pair<std::string, DeviceTypeID>> deviceMap = {
+        {"TYPE_A", DeviceTypeID::TYPE_A},
+        {"TYPE_B", DeviceTypeID::TYPE_B}
+    };
+
+    // 如果输入为空，直接返回
+    if (str.empty()) return DeviceTypeID::UNKNOWN;
+
+    // 遍历查找表
+    for (const auto& pair : deviceMap) {
+        // 检查 pair.first (枚举名) 是否出现在 str (输入字符串) 中
+        // std::string::npos 表示没找到
+        if (str.find(pair.first) != std::string::npos) {
+            return pair.second;
+        }
+    }
+
+    return DeviceTypeID::UNKNOWN;
+}
+///////////////////////////////////////////////////////////////////////
+
 TcpServer::TcpServer(uint16_t port)
     : fd_data_queue(30), port_(port) {
     tcp_epoll_fd_ = epoll_create1(0);
@@ -22,7 +44,10 @@ TcpServer::~TcpServer() {
     if (tcp_stop_event_fd_ != -1) close(tcp_stop_event_fd_);
     if (listen_fd_ != -1) close(listen_fd_);
 }
-
+void TcpServer::registerDeviceType(const DeviceTypeID& type_id, DeviceCreator creator) {
+    std::lock_guard<std::recursive_mutex> lock(conn_mutex_);
+    device_factory_[type_id] = std::move(creator);
+}
 void TcpServer::start() {
     bool expected = false;
     if (!running_.compare_exchange_strong(expected, true)) return; 
@@ -180,7 +205,7 @@ void TcpServer::handleClientData(int fd){
     if (it == connections_.end()) return;
 
     ConnectionInfo& info = it->second;
-    std::vector<uint8_t> buf(4096);
+    std::vector<uint8_t> buf(128);
     ssize_t n;
     
     TimerManager::getInstance().startTimer(info.timeout_timer);
@@ -190,9 +215,14 @@ void TcpServer::handleClientData(int fd){
         info.recv_buf.insert(info.recv_buf.end(), buf.begin(), buf.begin() + n);
 
         if (info.state == ConnState::IDENTIFYING){
-            
-            // 如果识别成功
-            identifySuccess(fd, {});
+            std::string str(info.recv_buf.begin(), info.recv_buf.end());
+            DeviceTypeID id = stringToDeviceType(str);
+            if(id!=DeviceTypeID::UNKNOWN){
+                // 如果识别成功
+                identifySuccess(fd, id);
+            }else{
+                std::clog << "无法找到对应的正确类型\n";
+            }
             return;   // 识别成功后不再继续处理本次数据
         }
         
@@ -258,7 +288,7 @@ void TcpServer::startHeartbeatTimer(int fd) {
         it->second.timeout_timer = tid2;
     }
 }
-void TcpServer::identifySuccess(int fd, const std::vector<uint8_t>& recog_data){
+void TcpServer::identifySuccess(int fd, DeviceTypeID deveice_type){
     std::lock_guard<std::recursive_mutex> lock(conn_mutex_);
     auto it = connections_.find(fd);
     if (it == connections_.end()) return;
@@ -274,7 +304,23 @@ void TcpServer::identifySuccess(int fd, const std::vector<uint8_t>& recog_data){
     info.state = ConnState::IDENTIFIED;
 
     // ====================== 【关键】实例化对应类对象 ======================
-    info.device = std::unique_ptr<TcpDevice>(new TcpDevice()); // 示例
+    auto factory_it = device_factory_.find(deveice_type);
+    if (factory_it != device_factory_.end()){
+        auto device = factory_it->second();   // 调用 lambda 创建对象
+        if(device){
+            info.device = std::move(device);
+            info.device->fd = fd;
+            info.device->onConnect();
+        }else{
+            std::cout << "生成工厂对象失败\n";
+            closeConnection(fd);
+            return;
+        }
+    }else{
+        std::cout << "该设置类型没有注册过,无法生成工厂对象\n";
+        closeConnection(fd);
+        return;
+    }
 
     std::cout << "[TcpServer] 识别成功 fd=" << fd << "，已实例化对应 Device, 开始心跳" << std::endl;
 
@@ -293,6 +339,9 @@ void TcpServer::closeConnection(int fd) {
     }
     if (info.heartbeat_timer != 0) {
         TimerManager::getInstance().destroyTimer(info.heartbeat_timer);
+    }
+	if (info.timeout_timer != 0) {
+        TimerManager::getInstance().destroyTimer(info.timeout_timer);
     }
 
     // 通知 Device 断开

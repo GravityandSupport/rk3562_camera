@@ -11,6 +11,8 @@ public:
     TcpDevice() = default;
     virtual ~TcpDevice() = default;
 
+    int fd=-1;
+
     // TCP 线程收到完整数据后调用（已去掉 TCP 粘包/分包问题，用户只需关注业务）
     virtual void handleData(const std::vector<uint8_t>& data) {
         if (data.empty()) {
@@ -19,7 +21,7 @@ public:
         }
 
         std::string str(data.begin(), data.end());
-        std::cout << "接收的数据=" << str << std::endl;
+        std::cout << "fd=" << fd << ", 接收的数据=" << str << std::endl;
 
         // std::cout << "Received data (Hex): ";
         // for (auto byte : data) {
@@ -34,4 +36,5 @@ public:
     }
 
     virtual void onDisconnect() {}
+    virtual void onConnect() {}
 };
