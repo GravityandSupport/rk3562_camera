@@ -6,12 +6,16 @@
 #include <iomanip> // 必须包含，用于格式化输出
 #include <string>
 
+#include <netinet/in.h>
+
 class TcpDevice {
 public:
     TcpDevice() = default;
     virtual ~TcpDevice() = default;
 
     int fd=-1;
+    in_port_t       sin_port;       /* Port number */
+    struct in_addr  sin_addr;       /* IPv4 address */
 
     // TCP 线程收到完整数据后调用（已去掉 TCP 粘包/分包问题，用户只需关注业务）
     virtual void handleData(const std::vector<uint8_t>& data) {

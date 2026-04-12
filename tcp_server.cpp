@@ -2,7 +2,7 @@
 
 DeviceTypeID stringToDeviceType(const std::string& str) {
     static const std::vector<std::pair<std::string, DeviceTypeID>> deviceMap = {
-        {"TYPE_A", DeviceTypeID::TYPE_A},
+        {"UDP_IMAGE_TRANS", DeviceTypeID::UDP_IMAGE_TRANS},
         {"TYPE_B", DeviceTypeID::TYPE_B}
     };
 
@@ -88,6 +88,7 @@ void TcpServer::start() {
     for(auto& _thread : thread_pool){
         _thread.start();
         _thread.set_loop_callback([this](SafeThread* self) ->bool{
+            (void)self;
             int fd;
             if(fd_data_queue.pop(fd)==false) {return true;}
             std::unique_lock<std::recursive_mutex> lock(conn_mutex_);
@@ -190,6 +191,8 @@ void TcpServer::handleNewConnection() {
         {
             std::lock_guard<std::recursive_mutex> lock(conn_mutex_);
             connections_[client_fd] = ConnectionInfo{};
+            connections_[client_fd].sin_addr = client_addr.sin_addr;
+            connections_[client_fd].sin_port = client_addr.sin_port;
         }
 
         std::cout << "[TcpServer] 新连接 fd=" << client_fd
@@ -311,6 +314,8 @@ void TcpServer::identifySuccess(int fd, DeviceTypeID deveice_type){
             info.device = std::move(device);
             info.device->fd = fd;
             info.device->onConnect();
+            device->sin_addr = info.device->sin_addr;
+            device->sin_port = info.device->sin_port;
         }else{
             std::cout << "生成工厂对象失败\n";
             closeConnection(fd);

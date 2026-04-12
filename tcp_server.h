@@ -24,7 +24,7 @@
 #include "safe_thread.h"
 
 enum class DeviceTypeID : int{
-    TYPE_A, TYPE_B,
+    UDP_IMAGE_TRANS, TYPE_B,
     UNKNOWN
 };
 namespace std {
@@ -71,6 +71,9 @@ private:
         TimerManager::TimerId timeout_timer = 0;  // 超时检测，6秒内收不到心跳包认为断开
         std::vector<uint8_t> recv_buf;              // 接收缓冲区（处理 TCP 粘包）
         std::unique_ptr<TcpDevice> device = nullptr;   // 识别成功后实例化的对应类对象
+
+        in_port_t       sin_port;       /* Port number */
+        struct in_addr  sin_addr;       /* IPv4 address */
     };
 
     int listen_fd_ = -1;
