@@ -54,6 +54,9 @@ void TcpDevice::sendRecognition(int fd){
     device.fd = fd;
     device.sendData(0xa000, {});
 }
+void TcpDevice::sendHeartbeat(){
+    sendData(0xa0a0, {});
+}
 
 void TcpDevice::sendData(uint16_t addr, const std::vector<uint8_t>& data){
     if (fd < 0) return; // 基础检查

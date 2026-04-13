@@ -48,6 +48,7 @@ public:
     void sendData(uint16_t addr, const std::vector<uint8_t>& data);
 
     static void sendRecognition(int fd);
+    void sendHeartbeat();
 private:
 
     enum class RecStatus{

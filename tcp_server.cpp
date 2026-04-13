@@ -256,6 +256,11 @@ void TcpServer::sendRecognition(int fd) {
 
 void TcpServer::sendHeartbeat(int fd) {
     std::cout << "心跳包\n";
+    std::lock_guard<std::recursive_mutex> lock(conn_mutex_);
+    auto it = connections_.find(fd);
+    if (it != connections_.end() && it->second.device) {
+        it->second.device->sendHeartbeat();
+    }
 }
 
 void TcpServer::startIdentificationTimer(int fd) {
