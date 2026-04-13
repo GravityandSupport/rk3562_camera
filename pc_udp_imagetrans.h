@@ -8,6 +8,8 @@
 
 class PC_UDP_ImageTrans : public TcpDevice{
 public:
+
+
     PC_UDP_ImageTrans();
     virtual ~PC_UDP_ImageTrans();
 
@@ -16,8 +18,19 @@ public:
 
     // 返回拷贝以确保安全，或者由调用方手动管理生命周期
     static std::set<PC_UDP_ImageTrans*> get_all_instances();
+protected:
+    virtual void onConnect() override;
+
+    virtual void handleData(uint16_t addr, const std::vector<uint8_t>& data ) override;
 private:
     static std::set<PC_UDP_ImageTrans*> instance_registry;
     static std::mutex registry_mutex; // 保护上述两个成员的静态锁
+
+    in_port_t       udp_port;       /* Port number */
+    struct in_addr  udp_addr;       /* IPv4 address */
+
+    void procesData();
+
+
 };
 

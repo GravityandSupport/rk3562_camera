@@ -53,7 +53,7 @@ public:
     using DeviceCreator = std::function<std::unique_ptr<TcpDevice>()>;
     void registerDeviceType(const DeviceTypeID& type_id, DeviceCreator creator);
 private:
-    std::array<SafeThread, 5> thread_pool; // 微型线程池
+    std::array<SafeThread, 2> thread_pool; // 微型线程池
     ThreadSafeBoundedQueue<int> fd_data_queue; // 哪些文件描述符有数据
 
     std::unordered_map<DeviceTypeID, DeviceCreator> device_factory_; // 工厂映射表
@@ -63,6 +63,7 @@ private:
         IDENTIFYING,   // 识别阶段（发送识别码等待回复 或 等待从机发送识别码）
         IDENTIFIED     // 识别成功，已实例化对应 Device
     };
+
 
     struct ConnectionInfo {
         ConnState state = ConnState::IDENTIFYING;
@@ -74,7 +75,9 @@ private:
 
         in_port_t       sin_port;       /* Port number */
         struct in_addr  sin_addr;       /* IPv4 address */
+
     };
+
 
     int listen_fd_ = -1;
     int tcp_epoll_fd_ = -1;
@@ -104,4 +107,7 @@ private:
     void closeConnection(int fd);                           // 统一关闭连接（清理定时器 + Device + epoll）
 
     static void setNonBlock(int fd);
+private:
+
+
 };

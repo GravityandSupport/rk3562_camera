@@ -1,4 +1,5 @@
 #include "tcp_server.h"
+#include "outLog.h"
 
 DeviceTypeID stringToDeviceType(const std::string& str) {
     static const std::vector<std::pair<std::string, DeviceTypeID>> deviceMap = {
@@ -97,10 +98,10 @@ void TcpServer::start() {
             ConnectionInfo& info = it->second;
 
             std::vector<uint8_t> recv_buf = std::move(info.recv_buf);
-            TcpDevice* device = info.device.get();
+            std::unique_ptr<TcpDevice>& device = info.device;
             lock.unlock();
             
-            if(device){device->handleData(recv_buf);}
+            if(device){device->handleParseData(recv_buf);}
 
             return true;
         });
@@ -211,7 +212,7 @@ void TcpServer::handleClientData(int fd){
     std::vector<uint8_t> buf(128);
     ssize_t n;
     
-    TimerManager::getInstance().startTimer(info.timeout_timer);
+    TimerManager::getInstance().stopTimer(info.timeout_timer);
 
     while ((n = read(fd, buf.data(), buf.size())) > 0){
         
@@ -220,6 +221,7 @@ void TcpServer::handleClientData(int fd){
         if (info.state == ConnState::IDENTIFYING){
             std::string str(info.recv_buf.begin(), info.recv_buf.end());
             DeviceTypeID id = stringToDeviceType(str);
+            LOG_DEBUG("DEBUG", str);
             if(id!=DeviceTypeID::UNKNOWN){
                 // 如果识别成功
                 identifySuccess(fd, id);
@@ -249,6 +251,7 @@ void TcpServer::handleClientError(int fd, bool is_eof) {
 }
 void TcpServer::sendRecognition(int fd) {
     std::cout << "识别码\n";
+    TcpDevice::sendRecognition(fd);
 }
 
 void TcpServer::sendHeartbeat(int fd) {
@@ -259,7 +262,7 @@ void TcpServer::startIdentificationTimer(int fd) {
     // 1秒发一次
     auto tid = TimerManager::getInstance().createTimer(std::chrono::seconds(1),
                                                     std::chrono::seconds(1),
-                                                    [this, fd](TimerManager::TimerId tid) {sendRecognition(fd);});
+                                                    [this, fd](TimerManager::TimerId tid) {(void)tid;sendRecognition(fd);});
     TimerManager::getInstance().startTimer(tid);
 
     std::lock_guard<std::recursive_mutex> lock(conn_mutex_);
@@ -272,17 +275,21 @@ void TcpServer::startHeartbeatTimer(int fd) {
     // 首次 5秒后触发，之后每 5 秒一次
     auto tid = TimerManager::getInstance().createTimer(std::chrono::seconds(5),
                                                 std::chrono::seconds(5),
-                                                [this, fd](TimerManager::TimerId tid) {
+                                                [this, fd](TimerManager::TimerId tid) {(void)tid;
                                                     sendHeartbeat(fd);
+                                                    std::lock_guard<std::recursive_mutex> lock(conn_mutex_);
+                                                    auto it = connections_.find(fd);
+                                                    if (it != connections_.end()) {
+                                                        TimerManager::getInstance().startTimer(it->second.timeout_timer);
+                                                    }
                                                 });
     TimerManager::getInstance().startTimer(tid);
 
-    auto tid2 = TimerManager::getInstance().createTimer(std::chrono::seconds(6),
+    auto tid2 = TimerManager::getInstance().createTimer(std::chrono::seconds(3),
                                                 std::chrono::seconds(0),
-                                                [this, fd](TimerManager::TimerId tid) {
+                                                [this, fd](TimerManager::TimerId tid) {(void)tid;
                                                     closeConnection(fd); // 超时无数据，认为断开
                                                 });
-    TimerManager::getInstance().startTimer(tid2);
 
     std::lock_guard<std::recursive_mutex> lock(conn_mutex_);
     auto it = connections_.find(fd);
@@ -313,9 +320,9 @@ void TcpServer::identifySuccess(int fd, DeviceTypeID deveice_type){
         if(device){
             info.device = std::move(device);
             info.device->fd = fd;
+            info.device->sin_addr = info.sin_addr;
+            info.device->sin_port = info.sin_port;
             info.device->onConnect();
-            device->sin_addr = info.device->sin_addr;
-            device->sin_port = info.device->sin_port;
         }else{
             std::cout << "生成工厂对象失败\n";
             closeConnection(fd);
@@ -366,3 +373,7 @@ void TcpServer::setNonBlock(int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
+
+
+
+

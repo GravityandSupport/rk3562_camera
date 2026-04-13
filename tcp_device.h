@@ -38,7 +38,30 @@ public:
         // }
         // std::cout << std::dec << std::endl; // 打印完记得恢复成十进制
     }
+    virtual void handleData(uint16_t addr, const std::vector<uint8_t>& data ){(void)addr, (void)data;}
 
     virtual void onDisconnect() {}
     virtual void onConnect() {}
+
+    void handleParseData(const std::vector<uint8_t>& data);
+
+    void sendData(uint16_t addr, const std::vector<uint8_t>& data);
+
+    static void sendRecognition(int fd);
+private:
+
+    enum class RecStatus{
+        none,
+        x5a,
+        xa5,
+        addr_h,
+        addr_l,
+        len,
+    };
+
+
+    RecStatus rec_status = RecStatus::none;
+    std::vector<uint8_t> rec_data;
+    size_t data_len=0;
+    uint16_t rec_addr;
 };

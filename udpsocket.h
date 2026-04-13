@@ -48,9 +48,9 @@ public:
     void stop();
     int fd() const;
 
-private:
     UdpSocket();
     virtual ~UdpSocket();
+private:
     // 内部实现类（Pimpl 惯用法，隐藏实现细节）
     class Impl;
     std::unique_ptr<Impl> pimpl_;
