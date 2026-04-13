@@ -72,4 +72,11 @@ flowchart TD
     end
     tcp识别成功-->pc端udp图传派生类
     h264编码输出到接收端-->pc端udp图传h264裸流发送
+
+	subgraph 图像合并
+        direction TD
+        图像合并rga转一路输入格式[一路yuv转RGBA8888]-->图像合并rga合并[两路输入合并成nv12格式输出]
+    end
+    3ms后nv12捕获帧引用次数释放-->图像合并rga转一路输入格式
+    图像合并rga合并-->h264编码完成
 ```
