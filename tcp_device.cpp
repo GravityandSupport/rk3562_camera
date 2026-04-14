@@ -3,6 +3,12 @@
 
 void TcpDevice::handleParseData(const std::vector<uint8_t>& data){
     for(size_t i=0; i<data.size(); ++i){
+        if(last_type==0x5a && data[i]==0xa5) {
+            rec_status = RecStatus::xa5;
+            continue;
+        }
+        last_type = data[i];
+
         switch (rec_status) {
         case RecStatus::none:{
             if(data[i]==0x5a){

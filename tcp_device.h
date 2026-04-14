@@ -65,4 +65,5 @@ private:
     std::vector<uint8_t> rec_data;
     size_t data_len=0;
     uint16_t rec_addr;
+    uint8_t last_type;
 };

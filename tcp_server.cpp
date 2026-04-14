@@ -92,6 +92,7 @@ void TcpServer::start() {
             (void)self;
             int fd;
             if(fd_data_queue.pop(fd)==false) {return true;}
+            LOG_DEBUG("fd", fd);
             std::unique_lock<std::recursive_mutex> lock(conn_mutex_);
             auto it = connections_.find(fd);
             if (it == connections_.end()) return true;
@@ -154,6 +155,7 @@ void TcpServer::tcpEventLoop(){
                 continue;
             }
 
+            LOG_DEBUG("TCP epoll event", events[i].events);
             // 客户端事件
             if (events[i].events & (EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
                 if (events[i].events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
@@ -231,9 +233,11 @@ void TcpServer::handleClientData(int fd){
             return;   // 识别成功后不再继续处理本次数据
         }
         
+        LOG_DEBUG("tcp recv data", n);
         // 已识别：把完整数据交给对应的 Device 解析
         if (info.state == ConnState::IDENTIFIED && info.device) {
             fd_data_queue.push(fd);
+            LOG_DEBUG("fd", fd);
             // info.device->handleData(info.recv_buf);
             // info.recv_buf.clear();   // 简化处理：每次数据都完整交给上层（实际项目可按协议帧解析）
         }

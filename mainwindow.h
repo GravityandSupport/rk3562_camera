@@ -3,10 +3,7 @@
 
 #include <QMainWindow>
 
-#include "v4l2_nv12_capture.h"
-#include "h264_encoder.h"
-#include "timermanager.h"
-#include "tcp_server.h"
+#include "interface.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -23,9 +20,6 @@ public:
 private:
     Ui::MainWindow *ui;
 
-    std::shared_ptr<V4L2_NV12_Capture> capture;
-    H264_Encoder h264_encoder;
 
-    TcpServer tcp_server;
 };
 #endif // MAINWINDOW_H

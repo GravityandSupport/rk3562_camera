@@ -5,8 +5,9 @@
 #include <iostream>
 
 #include "tcp_device.h"
+#include "videobase.h"
 
-class PC_UDP_ImageTrans : public TcpDevice{
+class PC_UDP_ImageTrans : public TcpDevice , public VideoBase{
 public:
 
 
@@ -20,8 +21,11 @@ public:
     static std::set<PC_UDP_ImageTrans*> get_all_instances();
 protected:
     virtual void onConnect() override;
+    virtual void onDisconnect()  override;
 
     virtual void handleData(uint16_t addr, const std::vector<uint8_t>& data ) override;
+
+    virtual void process_frames(VideoFramePtr frame) override;
 private:
     static std::set<PC_UDP_ImageTrans*> instance_registry;
     static std::mutex registry_mutex; // 保护上述两个成员的静态锁

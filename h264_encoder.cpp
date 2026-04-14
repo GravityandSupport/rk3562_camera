@@ -84,7 +84,12 @@ bool H264_Encoder::encodeFrame(const DrmDumbBuffer* input){
         uint8_t * data = (uint8_t *)mpp_packet_get_data(packet);
         size_t size = mpp_packet_get_length(packet);
 //        LOG_DEBUG("mpp", data, size);
-        auto frame = std::make_shared<std::vector<uint8_t>>(data, data+size);
+//        auto frame = std::make_shared<std::vector<uint8_t>>(data, data+size);
+        VideoFramePtr frame = std::make_shared<VideoFrame>();
+        frame->width = m_width;
+        frame->height = m_height;
+        frame->stride = m_width;
+        frame->data = std::make_shared<std::vector<uint8_t>>(data, data+size);
         frames_ready(frame);
 
         mpp_packet_deinit(&packet);

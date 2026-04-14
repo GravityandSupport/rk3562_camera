@@ -1,5 +1,6 @@
 #include "pc_udp_imagetrans.h"
 #include "outLog.h"
+#include "interface.h"
 
 std::set<PC_UDP_ImageTrans*> PC_UDP_ImageTrans::instance_registry;
 std::mutex PC_UDP_ImageTrans::registry_mutex;
@@ -33,12 +34,21 @@ std::set<PC_UDP_ImageTrans*> PC_UDP_ImageTrans::get_all_instances() {
 
 void PC_UDP_ImageTrans::onConnect(){
     udp_addr = sin_addr;
-    udp_port = sin_port;
+//    udp_port = sin_port;
+    h264_encoder.add_video(this);
+}
+
+void PC_UDP_ImageTrans::onDisconnect(){
+    h264_encoder.remove_video(this);
+}
+
+void PC_UDP_ImageTrans::process_frames(VideoFramePtr frame){
+    LOG_DEBUG("udp image trans", frame->width, frame->height, frame->data->size());
 }
 
 void PC_UDP_ImageTrans::handleData(uint16_t addr, const std::vector<uint8_t>& data ){
      std::cout << "Received data (Hex): ";
-     std::cout << std::hex << std::setw(2) << std::setfill('0') << addr << ":";
+     std::cout << std::hex << std::setw(2) << std::setfill('0') << std::endl; std::cout << addr << ":";
      for (auto byte : data) {
          // std::hex: 十六进制显示
          // std::setw(2): 保证每个字节占两位
@@ -47,4 +57,17 @@ void PC_UDP_ImageTrans::handleData(uint16_t addr, const std::vector<uint8_t>& da
          std::cout << static_cast<int>(byte) << " ";
      }
      std::cout << std::dec << std::endl; // 打印完记得恢复成十进制
+
+     switch(addr){
+     case 0x4000:{ // port
+        uint16_t port;
+        if(data.size()<2) {return;}
+        port = data[0]*256;
+        port += data[1];
+        printf("port=0x%04x\n", port);
+        udp_port = htons(port);
+        break;
+     }
+     default:break;
+     }
 }
