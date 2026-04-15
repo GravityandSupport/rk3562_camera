@@ -22,6 +22,7 @@ public:
     bool bind(const std::string& ip, uint16_t port);
     bool setNonBlocking();
     ssize_t sendTo(const std::string& ip, uint16_t port, const void* data, size_t len);
+    ssize_t sendTo(const struct in_addr& ip, in_port_t port, const void* data, size_t len);
 
     void registerCallback(const std::string& remote_ip, uint16_t remote_port, RecvCallback callback);
     void removeCallback(const std::string& remote_ip, uint16_t remote_port);
@@ -64,7 +65,9 @@ ssize_t UdpSocket::sendTo(const std::string& ip, uint16_t port,
                           const void* data, size_t len) {
     return pimpl_->sendTo(ip, port, data, len);
 }
-
+ssize_t UdpSocket::sendTo(const struct in_addr& ip, in_port_t port, const void* data, size_t len) {
+    return pimpl_->sendTo(ip, port, data, len);
+}
 void UdpSocket::registerCallback(const std::string& remote_ip, uint16_t remote_port,
                                  RecvCallback callback) {
     pimpl_->registerCallback(remote_ip, remote_port, std::move(callback));
@@ -112,6 +115,14 @@ ssize_t UdpSocket::Impl::sendTo(const std::string& ip, uint16_t port,
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr(ip.c_str());
+
+    return sendto(sockfd_, data, len, 0, (struct sockaddr*)&addr, sizeof(addr));
+}
+ssize_t UdpSocket::Impl::sendTo(const struct in_addr& ip, in_port_t port, const void* data, size_t len){
+    struct sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_port = port;
+    addr.sin_addr.s_addr = ip.s_addr;
 
     return sendto(sockfd_, data, len, 0, (struct sockaddr*)&addr, sizeof(addr));
 }
@@ -190,7 +201,7 @@ void UdpSocket::Impl::handleRecv() {
 
             std::string key = makeKey(sender_ip, sender_port);
 
-//            LOG_DEBUG("UDP SOCKET", sender_ip, sender_port);
+            LOG_DEBUG("UDP SOCKET", sender_ip, sender_port);
             auto it = callbacks_.find(key);
             if (it != callbacks_.end() && it->second) {
                 it->second(reinterpret_cast<char*>(buffer_.data()), static_cast<size_t>(ret), sender_ip, sender_port);

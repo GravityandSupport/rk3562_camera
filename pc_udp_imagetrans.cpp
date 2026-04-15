@@ -1,6 +1,7 @@
 #include "pc_udp_imagetrans.h"
 #include "outLog.h"
 #include "interface.h"
+#include "udpsocket.h"
 
 std::set<PC_UDP_ImageTrans*> PC_UDP_ImageTrans::instance_registry;
 std::mutex PC_UDP_ImageTrans::registry_mutex;
@@ -34,6 +35,7 @@ std::set<PC_UDP_ImageTrans*> PC_UDP_ImageTrans::get_all_instances() {
 
 void PC_UDP_ImageTrans::onConnect(){
     udp_addr = sin_addr;
+    sendData(0x4000, {});
 //    udp_port = sin_port;
     h264_encoder.add_video(this);
 }
@@ -42,8 +44,48 @@ void PC_UDP_ImageTrans::onDisconnect(){
     h264_encoder.remove_video(this);
 }
 
+
+struct NALUInfo {
+    size_t offset;        // 起始码首字节在 buf 中的偏移
+    size_t sc_len;        // 起始码长度 (3 或 4)
+};
+
+static std::vector<NALUInfo> find_nalu_offsets(const uint8_t* buf, size_t len)
+{
+    std::vector<NALUInfo> result;
+    if (len < 4) return result;
+
+    for (size_t i = 0; i < len - 3; ) {
+        if (buf[i] == 0x00 && buf[i+1] == 0x00) {
+            if (i + 3 < len && buf[i+2] == 0x00 && buf[i+3] == 0x01) {
+                result.push_back({i, 4});
+                i += 4;
+                continue;
+            }
+            if (buf[i+2] == 0x01) {
+                result.push_back({i, 3});
+                i += 3;
+                continue;
+            }
+        }
+        ++i;
+    }
+    return result;
+}
+
+
 void PC_UDP_ImageTrans::process_frames(VideoFramePtr frame){
-    LOG_DEBUG("udp image trans", frame->width, frame->height, frame->data->size());
+    auto offsets = find_nalu_offsets(frame->data->data(), frame->data->size());
+    for (size_t i = 0; i < offsets.size(); ++i){
+        printf("NAL Header = 0x%02x\n", frame->data->at(offsets[i].offset+offsets[i].sc_len));
+    }
+
+
+    if(is_get_udp_port==false) {return;}
+//    LOG_DEBUG("udp image trans", frame->width, frame->height, frame->data->size());
+    uint8_t arr[] = {0xaa, 0xbb, 0xcc, 0xdd};
+//    LOG_DEBUG("udp image trans", inet_ntoa(udp_addr), ntohs(udp_port));
+    UdpSocket::getInstance().sendTo(udp_addr, udp_port, arr, sizeof(arr));
 }
 
 void PC_UDP_ImageTrans::handleData(uint16_t addr, const std::vector<uint8_t>& data ){
@@ -64,8 +106,10 @@ void PC_UDP_ImageTrans::handleData(uint16_t addr, const std::vector<uint8_t>& da
         if(data.size()<2) {return;}
         port = data[0]*256;
         port += data[1];
-        printf("port=0x%04x\n", port);
+//        printf("port=0x%04x\n", port);
+        LOG_DEBUG("UDP IMAGE TRANS", port);
         udp_port = htons(port);
+        is_get_udp_port = true;
         break;
      }
      default:break;

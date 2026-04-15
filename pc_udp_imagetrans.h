@@ -4,6 +4,7 @@
 #include <mutex>
 #include <iostream>
 
+
 #include "tcp_device.h"
 #include "videobase.h"
 
@@ -35,6 +36,6 @@ private:
 
     void procesData();
 
-
+    bool is_get_udp_port = false; // 是否已经获取到udp对应的端口号
 };
 

@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <atomic>
 #include <thread>
-
+#include <arpa/inet.h>
 
 class UdpSocket
 {
@@ -25,8 +25,9 @@ public:
     bool setNonBlocking();
 
     // ==================== 发送 ====================
-        ssize_t sendTo(const std::string& ip, uint16_t port,
-                       const void* data, size_t len);
+    ssize_t sendTo(const std::string& ip, uint16_t port,
+                   const void* data, size_t len);
+    ssize_t sendTo(const struct in_addr& ip, in_port_t port, const void* data, size_t len);
 
     // ==================== 回调注册（精确到 IP:Port） ====================
     /**

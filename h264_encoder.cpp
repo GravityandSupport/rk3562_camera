@@ -2,6 +2,7 @@
 #include "v4l2_nv12_capture.h"
 #include "outLog.h"
 #include <iostream>
+#include <iomanip> // 必须包含，用于格式化输出
 
 H264_Encoder::H264_Encoder():
     process_queue(3)
@@ -37,7 +38,7 @@ bool H264_Encoder::initMPP()
     mpp_enc_cfg_set_s32(m_encCfg, "prep:format", MPP_FMT_YUV420SP);
     mpp_enc_cfg_set_s32(m_encCfg, "prep:range", MPP_FRAME_RANGE_JPEG);
 
-    int64_t bps_target = m_width*m_height*m_fps * 0.5;
+    int64_t bps_target = m_width*m_height*m_fps * 1.0f;
     std::clog << "bps_target=" << bps_target << std::endl;
 
     mpp_enc_cfg_set_s32(m_encCfg, "rc:mode", MPP_ENC_RC_MODE_CBR);
@@ -83,8 +84,6 @@ bool H264_Encoder::encodeFrame(const DrmDumbBuffer* input){
     if (m_mppApi->encode_get_packet(m_mppCtx, &packet) == MPP_OK){
         uint8_t * data = (uint8_t *)mpp_packet_get_data(packet);
         size_t size = mpp_packet_get_length(packet);
-//        LOG_DEBUG("mpp", data, size);
-//        auto frame = std::make_shared<std::vector<uint8_t>>(data, data+size);
         VideoFramePtr frame = std::make_shared<VideoFrame>();
         frame->width = m_width;
         frame->height = m_height;
@@ -97,8 +96,6 @@ bool H264_Encoder::encodeFrame(const DrmDumbBuffer* input){
 
     mpp_frame_deinit(&frame);
     mpp_buffer_put(buffer);
-
-    m_mppApi->reset(m_mppCtx);
 
     return true;
 }

@@ -41,7 +41,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // test
 #if 1
-    UdpSocket::getInstance().registerCallback("192.168.31.180", 8080, [&](const char* data, size_t len,
+    UdpSocket::getInstance().registerCallback("192.168.31.149", 777, [&](const char* data, size_t len,
                                               const std::string& sender_ip,
                                                   uint16_t sender_port){
         std::string str(data, data+len);
