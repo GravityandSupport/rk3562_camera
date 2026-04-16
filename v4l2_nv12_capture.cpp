@@ -67,7 +67,7 @@ int V4L2_NV12_Capture::start_stream(){
 //            LOG_DEBUG("CAPTURE", index);
             //======================
 
-            auto time_id = TimerManager::getInstance().createTimer(std::chrono::milliseconds(5),
+            auto time_id = TimerManager::getInstance().createTimer(std::chrono::milliseconds(30),
                                 std::chrono::milliseconds(0),
             [index, this](TimerManager::TimerId i){
 //                LOG_DEBUG("TIME", index, i);
