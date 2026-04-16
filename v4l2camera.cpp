@@ -117,7 +117,6 @@ bool V4L2Camera::start_stream() {
         return false;
     }
 
-    thread_.start();
     thread_.set_loop_callback([this](SafeThread* self) ->bool{
         (void)self;
         uint32_t bytesused = 0;
@@ -130,6 +129,7 @@ bool V4L2Camera::start_stream() {
         ThreadSafeBoundedQueue::push(index);
         return true;
     });
+    thread_.start();
     return true;
 }
 

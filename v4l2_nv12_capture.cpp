@@ -51,7 +51,6 @@ int V4L2_NV12_Capture::start_stream(){
     }
 
     for(auto& _thread : thread_pool){
-        _thread.start();
         _thread.set_loop_callback([this](SafeThread* self) ->bool{
             (void)self;
             int index=-1;
@@ -77,6 +76,7 @@ int V4L2_NV12_Capture::start_stream(){
             TimerManager::getInstance().startTimer(time_id);
             return true;
         });
+        _thread.start();
     }
 
     std::clog << "Streaming started. Waiting for frames...\n";

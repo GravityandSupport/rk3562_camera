@@ -54,6 +54,11 @@ bool H264_Encoder::initMPP()
     mpp_enc_cfg_set_s32(m_encCfg, "h264:level", 41);
 
     m_mppApi->control(m_mppCtx, MPP_ENC_SET_CFG, m_encCfg);
+
+    // 4. 关键：设置header模式
+    // 设置一下mpp编码头部信息，否则编码出来的 SPS/PPS 默认只存在于每一帧，设置这个后每个IDR关键帧都会带有SPS/PPS
+    MppEncHeaderMode header_mode = MPP_ENC_HEADER_MODE_EACH_IDR;
+    m_mppApi->control(m_mppCtx, MPP_ENC_SET_HEADER_MODE, &header_mode);
     return true;
 }
 
