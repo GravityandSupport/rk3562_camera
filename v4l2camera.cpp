@@ -129,7 +129,7 @@ bool V4L2Camera::start_stream() {
         ThreadSafeBoundedQueue::push(index);
         return true;
     });
-    thread_.start();
+    thread_.start("V4L2Camera");
     return true;
 }
 

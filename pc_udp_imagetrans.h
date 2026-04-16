@@ -7,10 +7,11 @@
 
 #include "tcp_device.h"
 #include "videobase.h"
+#include "udpnalu.h"
 
 class PC_UDP_ImageTrans : public TcpDevice , public VideoBase{
 public:
-
+    UdpNalu udp_nalu;
 
     PC_UDP_ImageTrans();
     virtual ~PC_UDP_ImageTrans();
@@ -37,5 +38,7 @@ private:
     void procesData();
 
     bool is_get_udp_port = false; // 是否已经获取到udp对应的端口号
+
+    int frame_id=0;
 };
 

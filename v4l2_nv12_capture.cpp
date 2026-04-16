@@ -76,7 +76,7 @@ int V4L2_NV12_Capture::start_stream(){
             TimerManager::getInstance().startTimer(time_id);
             return true;
         });
-        _thread.start();
+        _thread.start("V4L2_NV12_Capture");
     }
 
     std::clog << "Streaming started. Waiting for frames...\n";

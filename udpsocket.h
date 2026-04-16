@@ -8,6 +8,8 @@
 #include <thread>
 #include <arpa/inet.h>
 
+#include "epollevent.h"
+
 class UdpSocket
 {
 public:
@@ -16,7 +18,8 @@ public:
     // 接收回调类型：data, len, sender_ip, sender_port
     using RecvCallback = std::function<void(const char* data, size_t len,
                                     const std::string& sender_ip,
-                                    uint16_t sender_port)>;
+                                    uint16_t sender_port,
+                                    EpollEvent::Message)>;
 
 
     // ==================== 基础操作 ====================
@@ -45,7 +48,7 @@ public:
     // 移除某个 IP 的所有端口回调
     void removeAllCallbacksForIp(const std::string& remote_ip);
 
-    bool start();
+    bool start(int timeout_ms=2000);
     void stop();
     int fd() const;
 

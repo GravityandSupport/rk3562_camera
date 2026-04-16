@@ -10,13 +10,17 @@
 #include "outLog.h"
 #include "safe_thread.h"
 
+
 constexpr int MAX_EVENTS = 64;
 
 // ==================== 内部实现类 ====================
 class UdpSocket::Impl {
 public:
-    Impl() : sockfd_(-1), epollfd_(-1){}
-    ~Impl() { stop(); }
+    Impl() : sockfd_(-1){}
+    ~Impl() {
+        stop();
+        if (sockfd_ != -1) {close(sockfd_); sockfd_=-1;}
+    }
 
     bool create();
     bool bind(const std::string& ip, uint16_t port);
@@ -28,12 +32,11 @@ public:
     void removeCallback(const std::string& remote_ip, uint16_t remote_port);
     void removeAllCallbacksForIp(const std::string& remote_ip);
 
-    bool start();
+    bool start(int timeout_ms);
     void stop();
     int fd() const { return sockfd_; }
 
 private:
-    void eventLoop(size_t buffer_size);
     void handleRecv();
 
     // 使用 "IP:Port" 作为 key 的精确匹配
@@ -43,12 +46,13 @@ private:
 
 private:
     int sockfd_;
-    int epollfd_;
-    std::unordered_map<std::string, RecvCallback> callbacks_;
+    std::unordered_map<std::string, std::shared_ptr<RecvCallback>> callbacks_;
 
-    SafeThread thread_;
+    EpollEvent epoll_event;
 
     std::vector<uint8_t> buffer_;
+
+    std::mutex mtx_;
 };
 
 // ==================== UdpSocket 公共接口实现 ====================
@@ -81,7 +85,7 @@ void UdpSocket::removeAllCallbacksForIp(const std::string& remote_ip) {
     pimpl_->removeAllCallbacksForIp(remote_ip);
 }
 
-bool UdpSocket::start() { return pimpl_->start(); }
+bool UdpSocket::start(int timeout_ms) { return pimpl_->start(timeout_ms); }
 void UdpSocket::stop() { pimpl_->stop(); }
 int UdpSocket::fd() const { return pimpl_->fd(); }
 
@@ -89,6 +93,22 @@ int UdpSocket::fd() const { return pimpl_->fd(); }
 
 bool UdpSocket::Impl::create() {
     sockfd_ = socket(AF_INET, SOCK_DGRAM, 0);
+    epoll_event.add_fd(sockfd_, [&](int fd, uint32_t events, EpollEvent::Message message){
+        (void)fd;(void)events;
+        if(message==EpollEvent::Message::Timeout){
+            std::lock_guard<std::mutex> lock(mtx_);
+            for(auto& callback : callbacks_){
+                (*callback.second)(nullptr, 0, "null", 0, EpollEvent::Message::Timeout);
+            }
+        }else if(message==EpollEvent::Message::Error){
+            std::lock_guard<std::mutex> lock(mtx_);
+            for(auto& callback : callbacks_){
+                (*callback.second)(nullptr, 0, "null", 0, EpollEvent::Message::Error);
+            }
+        }else{
+            handleRecv();
+        }
+    });
     return sockfd_ != -1;
 }
 
@@ -130,14 +150,17 @@ void UdpSocket::Impl::registerCallback(const std::string& remote_ip,
                                        uint16_t remote_port,
                                        RecvCallback callback) {
     std::string key = makeKey(remote_ip, remote_port);
-    callbacks_[key] = std::move(callback);
+    std::lock_guard<std::mutex> lock(mtx_);
+    callbacks_[key] = std::make_shared<RecvCallback>(std::move(callback));;
 }
 
 void UdpSocket::Impl::removeCallback(const std::string& remote_ip, uint16_t remote_port) {
+    std::lock_guard<std::mutex> lock(mtx_);
     callbacks_.erase(makeKey(remote_ip, remote_port));
 }
 
 void UdpSocket::Impl::removeAllCallbacksForIp(const std::string& remote_ip) {
+    std::lock_guard<std::mutex> lock(mtx_);
     for (auto it = callbacks_.begin(); it != callbacks_.end(); ) {
         if (it->first.rfind(remote_ip + ":", 0) == 0) {
             it = callbacks_.erase(it);
@@ -146,46 +169,19 @@ void UdpSocket::Impl::removeAllCallbacksForIp(const std::string& remote_ip) {
         }
     }
 }
-bool UdpSocket::Impl::start() {
+bool UdpSocket::Impl::start(int timeout_ms) {
     if (sockfd_ == -1) return false;
-
-    epollfd_ = epoll_create1(0);
-    if (epollfd_ == -1) return false;
 
     setNonBlocking();
 
-    struct epoll_event ev{};
-    ev.events = EPOLLIN | EPOLLET;   // 边缘触发
-    ev.data.fd = sockfd_;
-
-    if (epoll_ctl(epollfd_, EPOLL_CTL_ADD, sockfd_, &ev) == -1) {
-        close(epollfd_);
-        epollfd_ = -1;
-        return false;
-    }
-
     buffer_.resize(2048);
 
-    thread_.start();
-    thread_.set_loop_callback([this](SafeThread* self) ->bool{
-        (void)self;
-        struct epoll_event events[MAX_EVENTS];
-        int nfds = epoll_wait(epollfd_, events, MAX_EVENTS, 100);  // 100ms 超时
-        for (int i = 0; i < nfds; ++i) {
-            if (events[i].data.fd == sockfd_) {
-                handleRecv();
-            }
-        }
-        return true;
-    });
+    epoll_event.start(timeout_ms);
+
     return true;
 }
 void UdpSocket::Impl::stop() {
-    thread_.stop();
-    if (epollfd_ != -1) {
-        close(epollfd_);
-        epollfd_ = -1;
-    }
+    epoll_event.stop();
 }
 void UdpSocket::Impl::handleRecv() {
     while (true) {  // 边缘触发需一次性读空
@@ -201,10 +197,15 @@ void UdpSocket::Impl::handleRecv() {
 
             std::string key = makeKey(sender_ip, sender_port);
 
-            LOG_DEBUG("UDP SOCKET", sender_ip, sender_port);
-            auto it = callbacks_.find(key);
-            if (it != callbacks_.end() && it->second) {
-                it->second(reinterpret_cast<char*>(buffer_.data()), static_cast<size_t>(ret), sender_ip, sender_port);
+             LOG_DEBUG("UDP SOCKET", sender_ip, sender_port);
+            decltype(callbacks_) callbacks_copy;
+            {
+                std::lock_guard<std::mutex> lock(mtx_);
+                callbacks_copy = callbacks_;
+            }
+            auto it = callbacks_copy.find(key);
+            if (it != callbacks_copy.end() && it->second) {
+                (*it->second)(reinterpret_cast<char*>(buffer_.data()), static_cast<size_t>(ret), sender_ip, sender_port, EpollEvent::Message::Data);
             }
         }
         else if (ret == -1) {

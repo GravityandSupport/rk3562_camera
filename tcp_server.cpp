@@ -87,7 +87,6 @@ void TcpServer::start() {
     std::cout << "[TcpServer] 已启动，监听端口 " << port_ << std::endl;
 
     for(auto& _thread : thread_pool){
-        _thread.start();
         _thread.set_loop_callback([this](SafeThread* self) ->bool{
             (void)self;
             int fd;
@@ -105,6 +104,7 @@ void TcpServer::start() {
 
             return true;
         });
+        _thread.start("tcp_server");
     }
 }
 

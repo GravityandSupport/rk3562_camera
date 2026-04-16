@@ -43,9 +43,12 @@ MainWindow::MainWindow(QWidget *parent)
 #if 1
     UdpSocket::getInstance().registerCallback("192.168.31.149", 777, [&](const char* data, size_t len,
                                               const std::string& sender_ip,
-                                                  uint16_t sender_port){
-        std::string str(data, data+len);
-        LOG_DEBUG("UDP RECV", sender_ip, sender_port, str);
+                                                  uint16_t sender_port,
+                                              EpollEvent::Message message){
+        if(message==EpollEvent::Message::Data){
+            std::string str(data, data+len);
+            LOG_DEBUG("UDP RECV", sender_ip, sender_port, str);
+        }
     });
 #endif
 }

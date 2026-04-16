@@ -131,7 +131,7 @@ bool H264_Encoder::start_encoder(int width, int height, int fps){
 
         return true;
     });
-    thread_.start();
+    thread_.start("H264_Encoder");
 
     return true;
 }
