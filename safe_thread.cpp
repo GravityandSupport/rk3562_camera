@@ -1,127 +1,105 @@
 #include "safe_thread.h"
-#include <utility> // 包含 std::move
 #include <chrono>
+#include <pthread.h>
 #include "outLog.h"
 
-SafeThread::SafeThread(/* args */){
+void SafeThread::start(const std::string& name) {
+    std::unique_lock<std::mutex> lock(mtx_);
 
-}
-
-SafeThread::~SafeThread(){
-    stop(); // 最多超时 5000ms
-}
-
-void SafeThread::start(const std::string& name_){
-    if (running_.load(std::memory_order_relaxed)==true) {
-        LOG_DEBUG(thread_name_, "线程已经启动 你前后调用太快了");
+    if (state_ != State::Stopped) {
+        // Running / Starting / Stopping 都直接跳过
+        LOG_DEBUG(name, "线程未停止，忽略 start()，当前状态:", (int)state_);
         return;
     }
 
-    started_ = false;
+    thread_name_ = name;
+    state_ = State::Starting;
+    quit_.store(false, std::memory_order_relaxed);
 
-    thread_name_ = name_;
+    // thread_ 的赋值在锁内，不会与其他 start() 并发
     thread_ = std::thread(&SafeThread::eventLoop, this);
 
-    std::unique_lock<std::mutex> lock(mtx_);
-    cv_.wait(lock, [this]{
-        return started_.load();
-    });
+    // 等待 eventLoop 完成初始化（进入 Running 状态）
+    cv_.wait(lock, [this] { return state_ != State::Starting; });
 
-    LOG_DEBUG(thread_name_, "线程启动");
+    LOG_DEBUG(thread_name_, "线程启动完成");
 }
 
-void SafeThread::stop(){
-    if (running_.load(std::memory_order_relaxed)==false) {
-        LOG_DEBUG(thread_name_, "线程没有启动 没有方法为你停止");
+void SafeThread::stop() {
+    std::unique_lock<std::mutex> lock(mtx_);
+
+    if (state_ != State::Running) {
+        LOG_DEBUG(thread_name_, "线程未运行，忽略 stop()");
         return;
     }
 
-    LOG_DEBUG(thread_name_, "线程阻塞等待退出中...");
+    state_ = State::Stopping;
+    quit_.store(true, std::memory_order_release);
 
-    quit_.store(true, std::memory_order_relaxed);
+    // 取出 thread_ 后解锁再 join，避免死锁
+    // （eventLoop 结束时会 lock(mtx_) 修改 state_）
+    std::thread t = std::move(thread_);
+    lock.unlock();
 
-    if (thread_.joinable()) {
-        LOG_DEBUG(thread_name_ );
-        thread_.join();          // epoll_wait 有超时 → join 一定会很快返回
-    }
-
-    LOG_DEBUG(thread_name_, "线程阻塞退出完成");
+    LOG_DEBUG(thread_name_, "等待线程退出...");
+    if (t.joinable()) t.join();
+    LOG_DEBUG(thread_name_, "线程已退出");
 }
 
-void SafeThread::eventLoop(){
-    std::string thread_name = thread_name_.substr(0, 15); // 名字最长16个字符，包括'\0'，所以这里最多15个
-    pthread_setname_np(pthread_self(), thread_name.c_str());
+void SafeThread::eventLoop() {
+    // 设置线程名（Linux）
+    std::string tname = thread_name_.substr(0, 15);
+    pthread_setname_np(pthread_self(), tname.c_str());
 
-    running_.store(true, std::memory_order_relaxed);
-    quit_.store(false, std::memory_order_relaxed);
+    // 通知 start() 我们已经进入 Running
     {
         std::lock_guard<std::mutex> lock(mtx_);
-        started_ = true;
+        state_ = State::Running;
     }
     cv_.notify_one();
 
-    bool flag = true;
-    if(start_callback && start_callback(this)==false){
-        flag = false;
-    }
-    if(flag){
-        while (1){
-            if(loop_callback){if(loop_callback(this)==false) break;}
-            if(quit_.load(std::memory_order_relaxed)==true) {break;}
+    // 执行回调
+    bool ok = true;
+    if (start_callback_ && !start_callback_(this)) ok = false;
+
+    if (ok) {
+        while (!quit_.load(std::memory_order_acquire)) {
+            if (loop_callback_ && !loop_callback_(this)) break;
         }
-        if(end_callback) {end_callback(this);}
+        if (end_callback_) end_callback_(this);
     }
 
-    LOG_DEBUG(thread_name_, "线程函数结束");
-    running_.store(false, std::memory_order_relaxed);
+    LOG_DEBUG(thread_name_, "eventLoop 结束");
+
+    {
+        std::lock_guard<std::mutex> lock(mtx_);
+        state_ = State::Stopped;
+    }
+    cv_.notify_all();
 }
 
-
 void SafeThread::set_start_callback(ThreadCallback cb) {
-    if (running_.load(std::memory_order_relaxed)==true) {
-        LOG_DEBUG(thread_name_, "不允许在线程启动的情况下设置回调函数");
+    std::lock_guard<std::mutex> lock(mtx_);
+    if (state_ != State::Stopped) {
+        LOG_DEBUG(thread_name_, "线程运行中，不允许设置回调");
         return;
     }
-    start_callback = std::move(cb);
+    start_callback_ = std::move(cb);
 }
 
 void SafeThread::set_end_callback(ThreadCallback cb) {
-    if (running_.load(std::memory_order_relaxed)==true) {
-        LOG_DEBUG(thread_name_, "不允许在线程启动的情况下设置回调函数");
-        return;
-    }
-    end_callback = std::move(cb);
+    std::lock_guard<std::mutex> lock(mtx_);
+    if (state_ != State::Stopped) { LOG_DEBUG(thread_name_, "线程运行中"); return; }
+    end_callback_ = std::move(cb);
 }
 
 void SafeThread::set_loop_callback(ThreadCallback cb) {
-    if (running_.load(std::memory_order_relaxed)==true) {
-        LOG_DEBUG(thread_name_, "不允许在线程启动的情况下设置回调函数");
-        return;
-    }
-    loop_callback = std::move(cb);
+    std::lock_guard<std::mutex> lock(mtx_);
+    if (state_ != State::Stopped) { LOG_DEBUG(thread_name_, "线程运行中"); return; }
+    loop_callback_ = std::move(cb);
 }
 
-
-// 纳秒延时
-void SafeThread::nsDelay(int ns){
-    if (ns <= 0) return;
-    std::this_thread::sleep_for(std::chrono::nanoseconds(ns));
-}
-
-// 微秒延时
-void SafeThread::usDelay(int us){
-    if (us <= 0) return;
-    std::this_thread::sleep_for(std::chrono::microseconds(us));
-}
-
-// 毫秒延时
-void SafeThread::msDelay(int ms){
-    if (ms <= 0) return;
-    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-}
-
-// 秒延时
-void SafeThread::sDelay(int s){
-    if (s <= 0) return;
-    std::this_thread::sleep_for(std::chrono::seconds(s));
-}
+void SafeThread::nsDelay(int ns) { if (ns > 0) std::this_thread::sleep_for(std::chrono::nanoseconds(ns)); }
+void SafeThread::usDelay(int us) { if (us > 0) std::this_thread::sleep_for(std::chrono::microseconds(us)); }
+void SafeThread::msDelay(int ms) { if (ms > 0) std::this_thread::sleep_for(std::chrono::milliseconds(ms)); }
+void SafeThread::sDelay(int s)   { if (s  > 0) std::this_thread::sleep_for(std::chrono::seconds(s)); }

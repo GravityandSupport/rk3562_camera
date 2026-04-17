@@ -1,5 +1,4 @@
 #pragma once
-
 #include <atomic>
 #include <thread>
 #include <functional>
@@ -7,39 +6,43 @@
 #include <condition_variable>
 #include <string>
 
-class SafeThread
-{
+class SafeThread {
 public:
     using ThreadCallback = std::function<bool(SafeThread*)>;
+
 private:
-    std::atomic<bool> running_{false};
-    std::thread thread_;
-
-    void eventLoop();
-
-    ThreadCallback start_callback;
-    ThreadCallback end_callback;
-    ThreadCallback loop_callback;
+    enum class State { Stopped, Starting, Running, Stopping };
 
     std::mutex mtx_;
     std::condition_variable cv_;
-    std::atomic<bool> started_{false};
+    State state_{State::Stopped};       // 唯一状态源，mtx_ 保护
+    std::thread thread_;
+
+    ThreadCallback start_callback_;
+    ThreadCallback end_callback_;
+    ThreadCallback loop_callback_;
+    std::string thread_name_;
     std::atomic<bool> quit_{false};
 
-    std::string thread_name_;
+    void eventLoop();
+
 public:
-    void start(const std::string& name_="default");
+    void start(const std::string& name = "default");
     void stop();
+
+    void set_start_callback(ThreadCallback cb);
+    void set_end_callback(ThreadCallback cb);
+    void set_loop_callback(ThreadCallback cb);
 
     static void nsDelay(int ns);
     static void usDelay(int us);
     static void msDelay(int ms);
     static void sDelay(int s);
 
-    void set_start_callback(ThreadCallback cb);
-    void set_end_callback(ThreadCallback cb);
-    void set_loop_callback(ThreadCallback cb);
+    SafeThread() = default;
+    ~SafeThread() { stop(); }
 
-    SafeThread(/* args */);
-    virtual ~SafeThread();
+    // 禁止拷贝和移动
+    SafeThread(const SafeThread&) = delete;
+    SafeThread& operator=(const SafeThread&) = delete;
 };
