@@ -1,7 +1,11 @@
 #include "drmdumbbuffer.h"
 
+bool DrmDumbBuffer::create(uint32_t w, uint32_t h, uint32_t bpp){
+    return create("/dev/dri/card0", w, h, bpp);
+}
+
 bool DrmDumbBuffer::create(const char* dev, uint32_t w, uint32_t h, uint32_t bpp) {
-    width_ = w; height_ = h;
+    width_ = w; height_ = h;bpp_=bpp;
 
     fd_ = open(dev, O_RDWR | O_CLOEXEC);
     if (fd_ < 0) {

@@ -7,6 +7,8 @@
 #include <mutex>
 #include <array>
 
+
+class DrmDumbBuffer;
 class VideoBase;
 
 struct NV12_Packet{
@@ -25,6 +27,7 @@ public:
     enum class ChannelType : int {
         NV12_INDEX = 0,
         FRAME_DATA,
+        FRAME_DRMBUF,
         // 后续扩展
         MAX
     };
@@ -53,6 +56,14 @@ public:
         // size_t size = frame->size();
     }
      */
+
+    struct VideoDrmBuf {
+        VideoBase* video;
+        DrmDumbBuffer* buffer;
+    };
+    using VideoDrmBufPtr = std::shared_ptr<VideoDrmBuf>;
+    virtual void process_frames(VideoDrmBufPtr frame){(void)frame;}
+    virtual void frames_ready(VideoDrmBufPtr frame);
 
     void add_video(VideoBase* _video);
     void remove_video(VideoBase* video);

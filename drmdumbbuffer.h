@@ -36,6 +36,7 @@ public:
     virtual ~DrmDumbBuffer() { destroy(); }
 
     bool create(const char* dev, uint32_t w, uint32_t h, uint32_t bpp = 32);
+    bool create(uint32_t w, uint32_t h, uint32_t bpp = 32);
 
     int get_dmabuf_fd() const { return dmabuf_fd_; }
     uint32_t pitch() const { return pitch_; }
@@ -43,6 +44,7 @@ public:
     uint32_t width() const { return width_; }
     uint32_t height() const { return height_; }
     uint32_t size() const { return size_; }
+    uint32_t getSize() const { return width_*height_*bpp_/8; }
 
 private:
     void destroy();
@@ -55,6 +57,7 @@ private:
     void* map_;
     int dmabuf_fd_;
     uint32_t width_, height_;
+    uint32_t bpp_;
 };
 
 #endif // DRMDUMBBUFFER_H

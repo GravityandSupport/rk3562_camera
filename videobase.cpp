@@ -38,6 +38,21 @@ void VideoBase::frames_ready(VideoFramePtr frame) {
     }
 }
 
+void VideoBase::frames_ready(VideoDrmBufPtr frame){
+    std::list<VideoNode> copy_list;
+
+    {
+        std::lock_guard<std::mutex> lock(mtx_);
+        copy_list = video_list;
+    }
+
+    for (auto& element : copy_list) {
+        if(element.enable_array_[static_cast<int>(ChannelType::FRAME_DRMBUF)]){
+            element.node->process_frames(frame);
+        }
+    }
+}
+
 // ================== 添加节点 ==================
 
 void VideoBase::add_video(VideoBase* _video){
