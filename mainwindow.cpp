@@ -39,6 +39,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     h264_encoder.start_encoder(1024, 592, 30);
 
+
+    tcp_client.connect("192.168.31.149", 7777);
     // test
 #if 1
     UdpSocket::getInstance().registerCallback("192.168.31.149", 777, [&](const char* data, size_t len,

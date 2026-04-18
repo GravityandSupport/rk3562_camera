@@ -5,10 +5,13 @@
 #include "h264_encoder.h"
 #include "timermanager.h"
 #include "tcp_server.h"
+#include "tcpclient.h"
 
 extern std::shared_ptr<V4L2_NV12_Capture> capture;
 extern H264_Encoder h264_encoder;
 
 extern TcpServer tcp_server;
+
+extern TcpClient tcp_client;
 
 #endif // INTERFACE_H

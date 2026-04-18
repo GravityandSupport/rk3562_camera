@@ -38,7 +38,7 @@ void EpollEvent::add_fd(int fd, Callback callback) {
     setNonBlock(fd);
 
     epoll_event ev{};
-    ev.events = EPOLLIN | EPOLLET;
+    ev.events = EPOLLIN | EPOLLET | EPOLLOUT;
     ev.data.fd = fd;
 
     if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &ev) == -1) {
