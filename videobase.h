@@ -23,6 +23,8 @@ public:
     explicit VideoBase(QObject *parent = nullptr);
     virtual ~VideoBase() = default;
 
+    VideoBase* parent_node = nullptr;
+
     // ================== 通道定义 ==================
     enum class ChannelType : int {
         NV12_INDEX = 0,

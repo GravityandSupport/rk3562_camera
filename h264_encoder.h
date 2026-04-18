@@ -17,20 +17,21 @@ extern "C" {
 class H264_Encoder : public VideoBase
 {
 public:
+    enum class EncodeStatus{
+        Stop, Start
+    };
+    EncodeStatus encode_status=EncodeStatus::Stop;
+
     H264_Encoder();
     virtual ~H264_Encoder() = default;
 
-    virtual void process_frames(VideoBase* capture, int idx) override;
+    virtual void process_frames(VideoDrmBufPtr frame) override;
 
     bool start_encoder(int width, int height, int fps);
     bool stop_encoder();
 private:
     bool initMPP();
     bool encodeFrame(const DrmDumbBuffer* input);
-
-    SafeThread thread_;
-
-    ThreadSafeBoundedQueue<NV12_Packet> process_queue;
 
     int m_width;
     int m_height;

@@ -4,11 +4,9 @@
 #include "v4l2_nv12_capture.h"
 
 void VideoMerge::create(uint32_t width, uint32_t height,
-            uint32_t buffer_num,
             const std::string& drm_dev){
     width_ = width;
     height_ = height;
-    buffer_num_ = buffer_num;
     drm_dev_ = drm_dev;
 
     for (std::size_t i = 0; i < ring_buffer.capacity(); ++i){
@@ -32,6 +30,11 @@ void VideoMerge::process_frames(VideoBase* _capture, int idx){
     rect.width = dst_drm->width();
     rect.height = dst_drm->height();
     RgaControl::resize_rect(src_drm, dst_drm, RgaControl::Format::NV12, RgaControl::Format::NV12, rect);
+
+    VideoDrmBufPtr frame = std::make_shared<VideoDrmBuf>();
+    frame->video = this;
+    frame->buffer = dst_drm;
+    frames_ready(frame);
 
     capture->release_dmabuf(idx);
 }

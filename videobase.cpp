@@ -58,16 +58,20 @@ void VideoBase::frames_ready(VideoDrmBufPtr frame){
 void VideoBase::add_video(VideoBase* _video){
     if (!_video) return;
 
+
     VideoNode node;
     node.node = _video;
     node.enable_array_.fill(true);
     std::lock_guard<std::mutex> lock(mtx_);
+    _video->parent_node = this;
     video_list.push_back(std::move(node));
 }
 void VideoBase::remove_video(VideoBase* video){
     if (!video) return;
 
     std::lock_guard<std::mutex> lock(mtx_);
+
+    video->parent_node = nullptr;
 
     for (auto it = video_list.begin(); it != video_list.end(); ){
         if (it->node == video){

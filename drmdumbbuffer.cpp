@@ -1,5 +1,9 @@
 #include "drmdumbbuffer.h"
 
+#include "outLog.h"
+
+int DrmDumbBuffer::buffer_size = 0;
+
 bool DrmDumbBuffer::create(uint32_t w, uint32_t h, uint32_t bpp){
     return create("/dev/dri/card0", w, h, bpp);
 }
@@ -60,6 +64,9 @@ bool DrmDumbBuffer::create(const char* dev, uint32_t w, uint32_t h, uint32_t bpp
     // zero the buffer (optional but useful)
     memset(map_, 0x10, size_);
 
+    buffer_size++;
+    LOG_DEBUG("drm buffer", buffer_size,  fd_, width_, height_, getSize());
+
     return true;
 }
 
@@ -83,4 +90,5 @@ void DrmDumbBuffer::destroy() {
         close(fd_);
         fd_ = -1;
     }
+    buffer_size--;
 }

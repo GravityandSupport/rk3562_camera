@@ -5,7 +5,7 @@ int V4L2_NV12_Capture::register_device(){
     drm_buffers.reserve(buffer_num_);
     for (uint32_t i = 0; i < buffer_num_; ++i){
         DrmDumbBuffer* db = new DrmDumbBuffer();
-        if (!db->create(drm_dev_.c_str(), width_, width_, 12)) { // nv12 相当于一个像素占12位数据
+        if (!db->create(drm_dev_.c_str(), width_, height_, 12)) { // nv12 相当于一个像素占12位数据
             std::cerr << "drm buffer create failed at idx=" << i << "\n";
             // 清理已创建的
             delete db;
@@ -13,7 +13,7 @@ int V4L2_NV12_Capture::register_device(){
             return -1;
         }
         drm_buffers.push_back(db);
-        LOG_DEBUG("drm buffer", i, db->get_dmabuf_fd(), db->size(), db->pitch());
+//        LOG_DEBUG("drm buffer", i, db->get_dmabuf_fd(), db->size(), db->pitch());
     }
 
     ref_array_manage.setSize(drm_buffers.size());

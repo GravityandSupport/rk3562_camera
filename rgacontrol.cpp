@@ -52,21 +52,25 @@ bool RgaControl::resize_rect(DrmDumbBuffer* src_drm, DrmDumbBuffer* dst_drm, For
     dst_height = dst_drm->height();
     dst_format = to_RKRgaFormat(_dst_format);
 
-    src_handle = importbuffer_fd(src_drm->get_dmabuf_fd(), src_drm->size());
-    dst_handle = importbuffer_fd(dst_drm->get_dmabuf_fd(), dst_drm->size());
+    src_handle = importbuffer_fd(src_drm->get_dmabuf_fd(), src_drm->getSize());
+    dst_handle = importbuffer_fd(dst_drm->get_dmabuf_fd(), dst_drm->getSize());
+
 
     src = wrapbuffer_handle(src_handle, src_width, src_height, src_format);
     dst = wrapbuffer_handle(dst_handle, dst_width, dst_height, dst_format);
 
-    ret = imcheck(src, dst, {}, {});
-    if (IM_STATUS_NOERROR != ret) {
-        printf("%d, check error! %s", __LINE__, imStrError((IM_STATUS)ret));
-        goto release_buffer;
-    }
+//    LOG_DEBUG("rga", src_drm->width(), src_drm->height(), src_drm->getSize(),
+//                    dst_drm->width(), dst_drm->height(), dst_drm->getSize());
+
+//    ret = imcheck(src, dst, {}, {});
+//    if (IM_STATUS_NOERROR != ret) {
+//        printf("%d, check error! %s", __LINE__, imStrError((IM_STATUS)ret));
+//        goto release_buffer;
+//    }
 
     ret = improcess(src, dst, {}, {}, rect, {}, IM_SYNC);
     if (ret == IM_STATUS_SUCCESS) {
-        printf("%s running success!\n", LOG_TAG);
+//        printf("%s running success!\n", LOG_TAG);
     } else {
         printf("%s running failed, %s\n", LOG_TAG, imStrError((IM_STATUS)ret));
         goto release_buffer;

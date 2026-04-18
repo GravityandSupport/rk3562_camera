@@ -46,6 +46,7 @@ public:
     uint32_t size() const { return size_; }
     uint32_t getSize() const { return width_*height_*bpp_/8; }
 
+    static int buffer_size;
 private:
     void destroy();
 

@@ -4,15 +4,9 @@
 #include <iostream>
 #include <iomanip> // 必须包含，用于格式化输出
 
-H264_Encoder::H264_Encoder():
-    process_queue(3)
+H264_Encoder::H264_Encoder()
 {
 
-}
-
-void H264_Encoder::process_frames(VideoBase* capture, int idx){
-    NV12_Packet packet = {capture, idx};
-    process_queue.push(std::move(packet));
 }
 
 bool H264_Encoder::initMPP()
@@ -105,6 +99,11 @@ bool H264_Encoder::encodeFrame(const DrmDumbBuffer* input){
     return true;
 }
 
+void H264_Encoder::process_frames(VideoDrmBufPtr frame){
+    if(encode_status==EncodeStatus::Start){
+        encodeFrame(frame->buffer);
+    }
+}
 
 bool H264_Encoder::start_encoder(int width, int height, int fps){
     m_width=width, m_height=height, m_fps=fps;
@@ -113,34 +112,18 @@ bool H264_Encoder::start_encoder(int width, int height, int fps){
         return false;
     }
 
-    thread_.set_loop_callback([this](SafeThread* self) ->bool{
-        (void)self;
-
-        NV12_Packet packet;
-        if(process_queue.pop(packet)){
-            if(packet.capture==nullptr) {return true;}
-            V4L2_NV12_Capture* capture = static_cast<V4L2_NV12_Capture*>(packet.capture);
-
-            DrmDumbBuffer* drm = capture->acquire_dmabuf(packet.idx);
-            if(drm==nullptr) {return true;}
-
-            encodeFrame(drm);
-
-            capture->release_dmabuf(packet.idx);
-        }
-
-        return true;
-    });
-    thread_.start("H264_Encoder");
+    encode_status = EncodeStatus::Start;
+    if(parent_node){parent_node->set_enable(this, ChannelType::FRAME_DRMBUF, true);}
 
     return true;
 }
 
 bool H264_Encoder::stop_encoder(){
+    encode_status = EncodeStatus::Stop;
+    if(parent_node){parent_node->set_enable(this, ChannelType::FRAME_DRMBUF, false);}
+
     m_mppApi->reset(m_mppCtx);
     mpp_destroy(m_mppCtx);
 
-    process_queue.close();
-    thread_.stop();
     return true;
 }
