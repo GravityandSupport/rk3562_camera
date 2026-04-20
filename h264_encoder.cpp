@@ -4,7 +4,7 @@
 #include <iostream>
 #include <iomanip> // 必须包含，用于格式化输出
 
-H264_Encoder::H264_Encoder()
+H264_Encoder::H264_Encoder() : process_queue(3)
 {
 
 }
@@ -101,10 +101,7 @@ bool H264_Encoder::encodeFrame(const DrmDumbBuffer* input){
 }
 
 void H264_Encoder::process_frames(VideoDrmBufPtr frame){
-    if(encode_status==EncodeStatus::Start){
-        encodeFrame(frame->buffer);
-        LOG_DEBUG("h264");
-    }
+    process_queue.push(frame);
 }
 
 bool H264_Encoder::start_encoder(int width, int height, int fps){
@@ -117,10 +114,24 @@ bool H264_Encoder::start_encoder(int width, int height, int fps){
     encode_status = EncodeStatus::Start;
     if(parent_node){parent_node->set_enable(this, ChannelType::FRAME_DRMBUF, true);}
 
+    thread_.set_loop_callback([this](SafeThread* self) ->bool{
+        (void)self;
+
+        VideoDrmBufPtr frame;
+        if(process_queue.pop(frame)){
+            encodeFrame(frame->buffer);
+        }
+
+        return true;
+    });
+    thread_.start("h264 encoder");
+
     return true;
 }
 
 bool H264_Encoder::stop_encoder(){
+    process_queue.close();
+    thread_.stop();
     encode_status = EncodeStatus::Stop;
     if(parent_node){parent_node->set_enable(this, ChannelType::FRAME_DRMBUF, false);}
 

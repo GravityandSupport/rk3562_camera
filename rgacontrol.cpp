@@ -35,6 +35,88 @@ RgaSURF_FORMAT RgaControl::to_RKRgaFormat(Format format){
 
     return RK_FORMAT_YCbCr_420_SP;
 }
+bool RgaControl::resize(DrmDumbBuffer* src_drm, DrmDumbBuffer* dst_drm, Format _src_format, Format _dst_format){
+    int ret;
+    int src_width, src_height, src_format;
+    int dst_width, dst_height, dst_format;
+
+    rga_buffer_handle_t src_handle, dst_handle;
+    rga_buffer_t src = {};
+    rga_buffer_t dst = {};
+
+    src_width = src_drm->width();
+    src_height = src_drm->height();
+    src_format = to_RKRgaFormat(_src_format);
+
+    dst_width = dst_drm->width();
+    dst_height = dst_drm->height();
+    dst_format = to_RKRgaFormat(_dst_format);
+
+    src_handle = importbuffer_fd(src_drm->get_dmabuf_fd(), src_drm->getSize());
+    dst_handle = importbuffer_fd(dst_drm->get_dmabuf_fd(), dst_drm->getSize());
+
+
+    src = wrapbuffer_handle(src_handle, src_width, src_height, src_format);
+    dst = wrapbuffer_handle(dst_handle, dst_width, dst_height, dst_format);
+
+    ret = imresize(src, dst);
+    if (ret == IM_STATUS_SUCCESS) {
+//        printf("%s running success!\n", LOG_TAG);
+    } else {
+        printf("%s running failed, %s\n", LOG_TAG, imStrError((IM_STATUS)ret));
+        goto release_buffer;
+    }
+
+    return true;
+release_buffer:
+    if (src_handle > 0)
+        releasebuffer_handle(src_handle);
+    if (dst_handle > 0)
+        releasebuffer_handle(dst_handle);
+
+    return false;
+}
+bool RgaControl::copy(DrmDumbBuffer* src_drm, DrmDumbBuffer* dst_drm, Format _src_format, Format _dst_format){
+    int ret;
+    int src_width, src_height, src_format;
+    int dst_width, dst_height, dst_format;
+
+    rga_buffer_handle_t src_handle, dst_handle;
+    rga_buffer_t src = {};
+    rga_buffer_t dst = {};
+
+    src_width = src_drm->width();
+    src_height = src_drm->height();
+    src_format = to_RKRgaFormat(_src_format);
+
+    dst_width = dst_drm->width();
+    dst_height = dst_drm->height();
+    dst_format = to_RKRgaFormat(_dst_format);
+
+    src_handle = importbuffer_fd(src_drm->get_dmabuf_fd(), src_drm->getSize());
+    dst_handle = importbuffer_fd(dst_drm->get_dmabuf_fd(), dst_drm->getSize());
+
+
+    src = wrapbuffer_handle(src_handle, src_width, src_height, src_format);
+    dst = wrapbuffer_handle(dst_handle, dst_width, dst_height, dst_format);
+
+    ret = imcopy(src, dst);
+    if (ret == IM_STATUS_SUCCESS) {
+//        printf("%s running success!\n", LOG_TAG);
+    } else {
+        printf("%s running failed, %s\n", LOG_TAG, imStrError((IM_STATUS)ret));
+        goto release_buffer;
+    }
+
+    return true;
+release_buffer:
+    if (src_handle > 0)
+        releasebuffer_handle(src_handle);
+    if (dst_handle > 0)
+        releasebuffer_handle(dst_handle);
+
+    return false;
+}
 bool RgaControl::resize_rect(DrmDumbBuffer* src_drm, DrmDumbBuffer* dst_drm, Format _src_format, Format _dst_format, im_rect rect){
     int ret;
     int src_width, src_height, src_format;

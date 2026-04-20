@@ -1,5 +1,5 @@
 #include "v4l2_nv12_capture.h"
-
+#include "rgacontrol.h"
 
 int V4L2_NV12_Capture::register_device(){
     drm_buffers.reserve(buffer_num_);
@@ -15,6 +15,10 @@ int V4L2_NV12_Capture::register_device(){
         drm_buffers.push_back(db);
 //        LOG_DEBUG("drm buffer", i, db->get_dmabuf_fd(), db->size(), db->pitch());
     }
+
+    pool_buffer.initialize([&](DrmDumbBuffer& buf){
+        buf.create(width_, height_, 12);
+    });
 
 //    ref_array_manage.setSize(drm_buffers.size());
 //    ref_array_manage.setOnZeroBackCall([&](int idx){
@@ -50,34 +54,44 @@ int V4L2_NV12_Capture::start_stream(){
         return -1;
     }
 
+    dequeue_thread.set_loop_callback([this](SafeThread* self) ->bool{
+        (void)self;
+        int index=-1;
+//            LOG_DEBUG("v4l2", video_dev_);
+        if(!cam->ThreadSafeBoundedQueue::timed_pop(index, 2000)){
+            LOG_DEBUG("取流队列", video_dev_, "timeout");
+            return true;
+        }
+
+        DrmDumbBuffer* drm_buffer = pool_buffer.try_acquire();
+        if(drm_buffer){
+            DrmDumbBuffer* src = acquire_dmabuf(index);
+            RgaControl::copy(src, drm_buffer, RgaControl::Format::NV12, RgaControl::Format::NV12);
+            forward_queue.push(drm_buffer);
+        }else{
+            LOG_DEBUG("取流队列", video_dev_, "环形缓冲区无缓冲帧可用");
+        }
+//        LOG_DEBUG("取流队列", video_dev_, index);
+        queue_dmabuf(index);
+
+        return true;
+    });
+    dequeue_thread.start("nv12 dequeu thread");
+
     for(auto& _thread : thread_pool){
         _thread.set_loop_callback([this](SafeThread* self) ->bool{
             (void)self;
-            int index=-1;
-//            LOG_DEBUG("v4l2", video_dev_);
-            if(!cam->ThreadSafeBoundedQueue::timed_pop(index, 2000)){
-                LOG_DEBUG("取流队列", video_dev_, "timeout");
-                return true;
+
+            DrmDumbBuffer* drm_buffer;
+            if(forward_queue.pop(drm_buffer)){
+                VideoDrmBufPtr frame = std::make_shared<VideoDrmBuf>();
+                frame->video = this;
+                frame->buffer = drm_buffer;
+                frames_ready(frame);
+
+                pool_buffer.release(drm_buffer);
             }
 
-//            this->ref_array_manage.acquire(index);
-
-            //======================
-            VideoBase::frames_ready(this, index);
-            LOG_DEBUG("取流队列", video_dev_, index);
-            queue_dmabuf(index);
-
-//            LOG_DEBUG("CAPTURE", index);
-            //======================
-
-//            auto time_id = TimerManager::getInstance().createTimer(std::chrono::milliseconds(30),
-//                                std::chrono::milliseconds(0),
-//            [index, this](TimerManager::TimerId i){
-////                LOG_DEBUG("TIME", index, i);
-//                this->ref_array_manage.release(index); // 延迟一会再释放，因为防止有些节点申请比较晚，等早到到的时候这里已经释放了
-//                TimerManager::getInstance().destroyTimer(i);
-//            });
-//            TimerManager::getInstance().startTimer(time_id);
             return true;
         });
         _thread.start("V4L2_NV12_Capture");
@@ -90,6 +104,8 @@ void V4L2_NV12_Capture::stop_stream(){
     std::clog << "Stopping stream...\n";
     cam->stop_stream();
 
+    forward_queue.close();
+    dequeue_thread.stop();
     for(auto& _thread : thread_pool){
         _thread.stop();
     }

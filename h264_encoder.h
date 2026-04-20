@@ -43,6 +43,9 @@ private:
     MppEncCfg       m_encCfg=nullptr;
 
     uint32_t frame_id=0;
+
+    ThreadSafeBoundedQueue<VideoDrmBufPtr> process_queue;
+    SafeThread thread_;
 };
 
 #endif // H264_ENCODER_H

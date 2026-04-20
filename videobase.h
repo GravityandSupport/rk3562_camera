@@ -61,7 +61,7 @@ public:
 
     struct VideoDrmBuf {
         VideoBase* video;
-        const DrmDumbBuffer* buffer;
+        DrmDumbBuffer* buffer;
     };
     using VideoDrmBufPtr = std::shared_ptr<VideoDrmBuf>;
     virtual void process_frames(VideoDrmBufPtr frame){(void)frame;}

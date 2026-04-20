@@ -18,7 +18,8 @@ public:
     static RgaSURF_FORMAT to_RKRgaFormat(Format);
 
     static bool resize_rect(DrmDumbBuffer* src, DrmDumbBuffer* dst, Format src_format, Format dst_format, im_rect rect);
-
+    static bool copy(DrmDumbBuffer* src, DrmDumbBuffer* dst, Format src_format, Format dst_format);
+    static bool resize(DrmDumbBuffer* src, DrmDumbBuffer* dst, Format src_format, Format dst_format);
     static void test();
 };
 
