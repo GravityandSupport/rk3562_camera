@@ -49,17 +49,17 @@ MainWindow::MainWindow(QWidget *parent)
     video_merge.big_source.video = capture_33.get();
     video_merge.big_source.x = 0;
     video_merge.big_source.y = 0;
-    video_merge.big_source.width_ = 1024;
-    video_merge.big_source.height_ = 592;
+    video_merge.big_source.width_ = 640;
+    video_merge.big_source.height_ = 480;
     video_merge.small_source.video = capture.get();
     video_merge.small_source.x = 0;
     video_merge.small_source.y = 0;
     video_merge.small_source.width_ = 192;
     video_merge.small_source.height_ = 144;
     video_merge.add_video(&h264_encoder);
-    video_merge.create(1024,  592);
+    video_merge.create(640,  480);
 
-    h264_encoder.start_encoder(1024, 592, 30);
+    h264_encoder.start_encoder(640, 480, 30);
 
 
     tcp_client.connect("192.168.31.149", 7777);

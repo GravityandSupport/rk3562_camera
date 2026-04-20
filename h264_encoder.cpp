@@ -32,7 +32,7 @@ bool H264_Encoder::initMPP()
     mpp_enc_cfg_set_s32(m_encCfg, "prep:format", MPP_FMT_YUV420SP);
     mpp_enc_cfg_set_s32(m_encCfg, "prep:range", MPP_FRAME_RANGE_JPEG);
 
-    int64_t bps_target = m_width*m_height*m_fps * 0.5f;
+    int64_t bps_target = m_width*m_height*m_fps * 0.3f;
     std::clog << "bps_target=" << bps_target << std::endl;
 
     mpp_enc_cfg_set_s32(m_encCfg, "rc:mode", MPP_ENC_RC_MODE_CBR);
@@ -42,7 +42,7 @@ bool H264_Encoder::initMPP()
     mpp_enc_cfg_set_s32(m_encCfg, "rc:fps_in_denorm", 1);
     mpp_enc_cfg_set_s32(m_encCfg, "rc:fps_out_num", m_fps);
     mpp_enc_cfg_set_s32(m_encCfg, "rc:fps_out_denorm", 1);
-    mpp_enc_cfg_set_s32(m_encCfg, "rc:gop", m_fps);
+    mpp_enc_cfg_set_s32(m_encCfg, "rc:gop", m_fps/2);
 
     mpp_enc_cfg_set_s32(m_encCfg, "h264:profile", 100);
     mpp_enc_cfg_set_s32(m_encCfg, "h264:level", 41);
