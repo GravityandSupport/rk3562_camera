@@ -9,6 +9,7 @@
 #include "videomerge.h"
 
 extern std::shared_ptr<V4L2_NV12_Capture> capture;
+extern std::shared_ptr<V4L2_NV12_Capture> capture_33;
 extern H264_Encoder h264_encoder;
 
 extern TcpServer tcp_server;

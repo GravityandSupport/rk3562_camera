@@ -23,18 +23,46 @@ void VideoMerge::process_frames(VideoBase* _capture, int idx){
     DrmDumbBuffer* src_drm = capture->acquire_dmabuf(idx);
     if(src_drm==nullptr) {return;}
 
+//    if(big_source.video==nullptr || small_source.video==nullptr) {return;}
+
     DrmDumbBuffer* dst_drm = ring_buffer.current()->get();
     im_rect rect;
-    rect.x = 0;
-    rect.y = 0;
-    rect.width = dst_drm->width();
-    rect.height = dst_drm->height();
+//    rect.x = 0;
+//    rect.y = 0;
+//    rect.width = dst_drm->width();
+//    rect.height = dst_drm->height();
+    if(big_source.video==capture){
+        rect.x = 0;
+        rect.y = 0;
+        rect.width = dst_drm->width();
+        rect.height = dst_drm->height();
+        big_source.status = true;
+    }else if(small_source.video==capture){
+        rect.x = 0;
+        rect.y = 0;
+        rect.width = 208;
+        rect.height = 128;
+        small_source.status = true;
+    }else{return;}
+
     RgaControl::resize_rect(src_drm, dst_drm, RgaControl::Format::NV12, RgaControl::Format::NV12, rect);
 
-    VideoDrmBufPtr frame = std::make_shared<VideoDrmBuf>();
-    frame->video = this;
-    frame->buffer = dst_drm;
-    frames_ready(frame);
+//    VideoDrmBufPtr frame = std::make_shared<VideoDrmBuf>();
+//    frame->video = this;
+//    frame->buffer = dst_drm;
+//    frames_ready(frame);
 
-    capture->release_dmabuf(idx);
+    LOG_DEBUG("video merge", idx, big_source.status, small_source.status, src_drm->size(), dst_drm->size());
+    if(big_source.status && small_source.status){
+        VideoDrmBufPtr frame = std::make_shared<VideoDrmBuf>();
+        frame->video = this;
+        frame->buffer = dst_drm;
+        frames_ready(frame);
+
+        big_source.status=false;
+        small_source.status=false;
+        ring_buffer.next();
+    }
+
+//    capture->release_dmabuf(idx);
 }

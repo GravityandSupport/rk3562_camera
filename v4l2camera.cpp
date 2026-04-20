@@ -123,7 +123,7 @@ bool V4L2Camera::start_stream() {
         int index = -1;
         bool ok = dequeue_dmabuf(5000, bytesused, index);
         if (!ok) {
-            std::clog << "no frame (timeout or interrupted)\n";
+            LOG_DEBUG("CAMERA", dev_, "no frame (timeout or interrupted)");
             return true;
         }
         ThreadSafeBoundedQueue::push(index);

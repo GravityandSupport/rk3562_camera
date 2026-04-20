@@ -10,6 +10,12 @@
 class VideoMerge :  public VideoBase
 {
 public:
+    struct Node{
+        const VideoBase* video = nullptr;
+        bool status = false;
+    };
+    Node big_source, small_source;
+
     RingBuffer<std::shared_ptr<DrmDumbBuffer>, 10> ring_buffer;
 
     void create(uint32_t width, uint32_t height,

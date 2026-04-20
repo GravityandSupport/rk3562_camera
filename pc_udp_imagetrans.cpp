@@ -89,9 +89,9 @@ void PC_UDP_ImageTrans::process_frames(VideoFramePtr frame){
     frame_id++;
     LOG_DEBUG("IMAGE TRANS", frame_id, frame->data->size());
 
-////    LOG_DEBUG("udp image trans", frame->width, frame->height, frame->data->size());
+//    LOG_DEBUG("udp image trans", frame->width, frame->height, frame->data->size());
 //    uint8_t arr[] = {0xaa, 0xbb, 0xcc, 0xdd};
-////    LOG_DEBUG("udp image trans", inet_ntoa(udp_addr), ntohs(udp_port));
+//    LOG_DEBUG("udp image trans", inet_ntoa(udp_addr), ntohs(udp_port));
 //    UdpSocket::getInstance().sendTo(udp_addr, udp_port, arr, sizeof(arr));
 }
 

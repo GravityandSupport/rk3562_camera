@@ -42,9 +42,9 @@ private:
     std::shared_ptr<V4L2Camera> cam;
 
     std::vector<DrmDumbBuffer*> drm_buffers;
-    RefArray ref_array_manage;
+//    RefArray ref_array_manage;
 
-    std::array<SafeThread, 5> thread_pool; // 微型线程池
+    std::array<SafeThread, 3> thread_pool; // 微型线程池
     std::unordered_map<SafeThread*, TimerManager::TimerId> delay_timer;
 };
 

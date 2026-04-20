@@ -30,19 +30,28 @@ MainWindow::MainWindow(QWidget *parent)
         return std::unique_ptr<TcpDevice>(new PC_UDP_ImageTrans());
     });
 
-    capture = std::make_shared<V4L2_NV12_Capture>(1920, 1072, 6, "/dev/video22");
+    capture = std::make_shared<V4L2_NV12_Capture>(1920, 1072, 10, "/dev/video22");
     if(capture->register_device()!=0){
         std::cerr << "注册设备失败\n";
         return;
     }
     capture->start_stream();
+    capture_33 = std::make_shared<V4L2_NV12_Capture>(1920, 1072, 6, "/dev/video33");
+    if(capture_33->register_device()!=0){
+        std::cerr << "注册设备失败\n";
+        return;
+    }
+    capture_33->start_stream();
 
     video_merge.create(1024,  592);
 
-    capture->add_video(&video_merge);
-    video_merge.add_video(&h264_encoder);
+//    capture->add_video(&video_merge);
+//    capture_33->add_video(&video_merge);
+//    video_merge.big_source.video = capture_33.get();
+//    video_merge.small_source.video = capture.get();
+//    video_merge.add_video(&h264_encoder);
 
-    h264_encoder.start_encoder(1024, 592, 30);
+//    h264_encoder.start_encoder(1024, 592, 30);
 
 
     tcp_client.connect("192.168.31.149", 7777);

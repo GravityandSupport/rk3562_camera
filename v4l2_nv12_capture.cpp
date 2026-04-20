@@ -16,10 +16,10 @@ int V4L2_NV12_Capture::register_device(){
 //        LOG_DEBUG("drm buffer", i, db->get_dmabuf_fd(), db->size(), db->pitch());
     }
 
-    ref_array_manage.setSize(drm_buffers.size());
-    ref_array_manage.setOnZeroBackCall([&](int idx){
-        this->queue_dmabuf(idx);
-    });
+//    ref_array_manage.setSize(drm_buffers.size());
+//    ref_array_manage.setOnZeroBackCall([&](int idx){
+//        this->queue_dmabuf(idx);
+//    });
 
     if (!cam->open_device(video_dev_.c_str())) {
         std::cerr << "open v4l2 failed\n";
@@ -54,26 +54,30 @@ int V4L2_NV12_Capture::start_stream(){
         _thread.set_loop_callback([this](SafeThread* self) ->bool{
             (void)self;
             int index=-1;
+//            LOG_DEBUG("v4l2", video_dev_);
             if(!cam->ThreadSafeBoundedQueue::timed_pop(index, 2000)){
-                LOG_DEBUG("取流队列", "timeout");
+                LOG_DEBUG("取流队列", video_dev_, "timeout");
                 return true;
             }
 
-            this->ref_array_manage.acquire(index);
+//            this->ref_array_manage.acquire(index);
 
             //======================
             VideoBase::frames_ready(this, index);
+            LOG_DEBUG("取流队列", video_dev_, index);
+            queue_dmabuf(index);
+
 //            LOG_DEBUG("CAPTURE", index);
             //======================
 
-            auto time_id = TimerManager::getInstance().createTimer(std::chrono::milliseconds(30),
-                                std::chrono::milliseconds(0),
-            [index, this](TimerManager::TimerId i){
-//                LOG_DEBUG("TIME", index, i);
-                this->ref_array_manage.release(index); // 延迟一会再释放，因为防止有些节点申请比较晚，等早到到的时候这里已经释放了
-                TimerManager::getInstance().destroyTimer(i);
-            });
-            TimerManager::getInstance().startTimer(time_id);
+//            auto time_id = TimerManager::getInstance().createTimer(std::chrono::milliseconds(30),
+//                                std::chrono::milliseconds(0),
+//            [index, this](TimerManager::TimerId i){
+////                LOG_DEBUG("TIME", index, i);
+//                this->ref_array_manage.release(index); // 延迟一会再释放，因为防止有些节点申请比较晚，等早到到的时候这里已经释放了
+//                TimerManager::getInstance().destroyTimer(i);
+//            });
+//            TimerManager::getInstance().startTimer(time_id);
             return true;
         });
         _thread.start("V4L2_NV12_Capture");
@@ -112,12 +116,12 @@ int V4L2_NV12_Capture::queue_dmabuf(uint32_t idx){
 }
 DrmDumbBuffer* V4L2_NV12_Capture::acquire_dmabuf(uint32_t idx){
     if(idx>=drm_buffers.size()) { return nullptr;}
-    this->ref_array_manage.acquire(idx);
+//    this->ref_array_manage.acquire(idx);
     return drm_buffers[idx];
 }
 void V4L2_NV12_Capture::release_dmabuf(uint32_t idx){
     if(idx>=drm_buffers.size()) { return;}
-    this->ref_array_manage.release(idx);
+//    this->ref_array_manage.release(idx);
 }
 //bool V4L2_NV12_Capture::threadLoop(){
 //    int index=-1;

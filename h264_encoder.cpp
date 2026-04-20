@@ -88,6 +88,7 @@ bool H264_Encoder::encodeFrame(const DrmDumbBuffer* input){
         frame->height = m_height;
         frame->stride = m_width;
         frame->data = std::make_shared<std::vector<uint8_t>>(data, data+size);
+        LOG_DEBUG("h264", size);
         frames_ready(frame);
 
         mpp_packet_deinit(&packet);
@@ -102,6 +103,7 @@ bool H264_Encoder::encodeFrame(const DrmDumbBuffer* input){
 void H264_Encoder::process_frames(VideoDrmBufPtr frame){
     if(encode_status==EncodeStatus::Start){
         encodeFrame(frame->buffer);
+        LOG_DEBUG("h264");
     }
 }
 
