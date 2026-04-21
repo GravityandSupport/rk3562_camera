@@ -117,19 +117,6 @@ bool V4L2Camera::start_stream() {
         return false;
     }
 
-    thread_.set_loop_callback([this](SafeThread* self) ->bool{
-        (void)self;
-        uint32_t bytesused = 0;
-        int index = -1;
-        bool ok = dequeue_dmabuf(5000, bytesused, index);
-        if (!ok) {
-            LOG_DEBUG("CAMERA", dev_, "no frame (timeout or interrupted)");
-            return true;
-        }
-        ThreadSafeBoundedQueue::push(index);
-        return true;
-    });
-    thread_.start("V4L2Camera");
     return true;
 }
 
@@ -139,8 +126,7 @@ bool V4L2Camera::stop_stream() {
         std::cerr << "VIDIOC_STREAMOFF failed: " << strerror(errno) << "\n";
         return false;
     }
-    ThreadSafeBoundedQueue::close();
-    thread_.stop();
+
     return true;
 }
 

@@ -6,11 +6,11 @@
 
 #include "ThreadSafeBoundedQueue.h"
 
-class V4L2Camera : public ThreadSafeBoundedQueue<int>
+class V4L2Camera
 {
 public:
-    V4L2Camera():ThreadSafeBoundedQueue(5){}
-    V4L2Camera(size_t queue_max_size) : ThreadSafeBoundedQueue(queue_max_size), fd_(-1), buffers_count_(0) {}
+//    V4L2Camera() = default;
+    V4L2Camera() : fd_(-1), buffers_count_(0) {}
     virtual ~V4L2Camera() { close_device(); }
 
     bool open_device(const char* dev);
@@ -29,7 +29,6 @@ private:
     uint32_t buffers_count_=10;
     std::string dev_;
 
-    SafeThread thread_;
 };
 
 #endif // V4L2CAMERA_H

@@ -88,7 +88,7 @@ bool H264_Encoder::encodeFrame(const DrmDumbBuffer* input){
         frame->height = m_height;
         frame->stride = m_width;
         frame->data = std::make_shared<std::vector<uint8_t>>(data, data+size);
-        LOG_DEBUG("h264", size);
+//        LOG_DEBUG("h264", size);
         frames_ready(frame);
 
         mpp_packet_deinit(&packet);
@@ -101,6 +101,9 @@ bool H264_Encoder::encodeFrame(const DrmDumbBuffer* input){
 }
 
 void H264_Encoder::process_frames(VideoDrmBufPtr frame){
+    ISlot* slot = frame->slot;
+    if(slot==nullptr) {return ;}
+    slot->retain();
     process_queue.push(frame);
 }
 
@@ -119,7 +122,10 @@ bool H264_Encoder::start_encoder(int width, int height, int fps){
 
         VideoDrmBufPtr frame;
         if(process_queue.pop(frame)){
-            encodeFrame(frame->buffer);
+            ISlot* slot = frame->slot;
+            if(slot==nullptr) {return true;}
+            encodeFrame(static_cast<DrmDumbBuffer*>(slot->getdata()));
+            slot->release();
         }
 
         return true;

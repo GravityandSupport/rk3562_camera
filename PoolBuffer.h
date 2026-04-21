@@ -6,138 +6,192 @@
 #include <cstddef>
 #include <stdexcept>
 #include <cassert>
+#include <atomic>
 #include <functional>
 
 /**
- * @brief 固定大小的缓冲池（对象池语义）
+ * @brief 带引用计数的固定大小缓冲池
  *
  * @tparam T  元素类型
- * @tparam N  池中槽位总数（编译期常量，固定不变）
+ * @tparam N  池中槽位总数（编译期常量）
  *
  * 设计语义
  * --------
- *  - 池中有 N 个固定槽位，每个槽位有两种状态：空闲 / 已借出。
- *  - acquire()  从池中借出一个空闲槽位，返回其元素指针，并将其标记为"已借出"。
- *               若池中无空闲槽位，可选择阻塞等待或立即返回 nullptr。
- *  - release(p) 归还一个已借出的槽位，将其重新标记为"空闲"，
- *               并唤醒正在 acquire() 中等待的线程。
- *  - 调用者通过返回的指针直接读写槽位内容，池本身不关心数据语义。
+ *  - 池中有 N 个固定 Slot，每个 Slot 内部包含：
+ *      · data        —— 用户数据（类型 T）
+ *      · ref_count   —— 引用计数（原子，初始为 0）
+ *      · in_use      —— 借出标记
+ *      · owner       —— 指回所属池，用于 ref_count 归零时自动归还
+ *
+ *  - acquire()  借出一个空闲 Slot，返回 Slot* 指针：
+ *      · 将 in_use 置为 true，ref_count 置为 1
+ *      · 调用者通过 slot->data 访问数据
+ *
+ *  - Slot::retain()   引用计数 +1（线程安全）
+ *  - Slot::release()  引用计数 -1，若归零则自动将 Slot 归还池（线程安全）
+ *
+ *  - 池的 release(slot*)  强制归还（无视引用计数，用于异常清理等场景）
  *
  * 线程安全
  * --------
- *  - acquire() / release() 内部已加锁，天然线程安全。
- *  - 持有指针期间直接操作数据不需要额外加锁（各线程持有不同槽位指针）。
- *  - 若多个线程共享同一个槽位指针，调用者自行负责同步。
- *  - 额外提供 lock() / unlock() / try_lock() 供需要原子性批量操作时使用。
- *
- * 典型用法
- * --------
- * @code
- *   PoolBuffer<MyData, 8> pool;
- *
- *   // 借出
- *   MyData* p = pool.acquire();       // 阻塞直到有空闲槽位
- *   if (p) {
- *       p->field = value;             // 直接操作
- *       send(p);                      // 传递给其他模块使用
- *   }
- *
- *   // 使用完毕后归还
- *   pool.release(p);                  // 槽位重新变为空闲
- * @endcode
+ *  - acquire / 池级 release 内部持 pool mutex。
+ *  - ref_count 使用 std::atomic<int>，retain/release 无需额外加锁。
+ *  - ref_count 归零时，release 内部会重新持 pool mutex 完成归还并 notify。
  */
+
+struct ISlot {
+public:
+    virtual void retain() = 0;
+    virtual void release() = 0;
+    virtual void* getdata() = 0;
+    virtual int ref_count() const = 0;
+
+    void lock()          { mutex_.lock();        }
+    void unlock()        { mutex_.unlock();      }
+    bool try_lock()      { return mutex_.try_lock(); }
+
+    virtual ~ISlot() {}
+
+private:
+    std::mutex      mutex_;
+};
+
 template <typename T, std::size_t N>
 class PoolBuffer {
-    static_assert(N > 0, "PoolBuffer: capacity N must be > 0");
+    static_assert(N > 0, "PoolBuffer: N must be > 0");
 
 public:
-    using value_type    = T;
-    using size_type     = std::size_t;
-    using pointer       = T*;
-    using const_pointer = const T*;
+    // 前向声明
+    struct Slot;
 
-    // ---------------------------------------------------------------- 构造
+    using value_type = T;
+    using size_type  = std::size_t;
+
+    // ================================================================ Slot
+    /**
+     * @brief 缓冲池的基本单元
+     *
+     * 持有用户数据、引用计数及归属池指针。
+     * 调用者只持有 Slot 指针，通过 slot->data 操作数据，
+     * 通过 slot->retain() / slot->release() 管理生命周期。
+     */
+    struct Slot  : public ISlot{
+    public:
+        T             data;       ///< 用户数据，直接读写
+        PoolBuffer*   pool;       ///< 所属池（由池在 acquire 时注入）
+
+        /**
+         * @brief 引用计数 +1
+         *
+         * 每新增一个持有者时调用。线程安全。
+         */
+        void retain() override {
+            ref_count_.fetch_add(1, std::memory_order_relaxed);
+        }
+
+        /**
+         * @brief 引用计数 -1
+         *
+         * 当引用计数降为 0 时，自动将本 Slot 归还给所属池。
+         * 线程安全。
+         */
+        void release() override {
+            // fetch_sub 返回减之前的值
+            int prev = ref_count_.fetch_sub(1, std::memory_order_acq_rel);
+            assert(prev >= 1 && "release() called more times than retain()");
+            if (prev == 1) {
+                // 引用计数已归零，自动归还
+                pool->return_slot(this);
+            }
+        }
+
+        /**
+         * @brief 当前引用计数快照（仅供调试/日志）
+         */
+        int ref_count() const override{
+            return ref_count_.load(std::memory_order_relaxed);
+        }
+
+        void* getdata() override {
+            return &data;
+        }
+    private:
+        friend class PoolBuffer;   // 允许池直接操作私有成员
+
+        std::atomic<int> ref_count_{0};   ///< 引用计数，acquire 时置 1
+        bool             in_use_{false};  ///< 是否已借出（受 pool mutex 保护）
+
+    public:
+        Slot() : pool(nullptr) {}
+    private:
+
+        // 不允许外部拷贝/移动（含 atomic）
+        Slot(const Slot&)            = delete;
+        Slot& operator=(const Slot&) = delete;
+    };
+
+    // ================================================================ 构造
     PoolBuffer() : free_count_(N) {
-        // 初始化：所有槽位均为空闲
         for (size_type i = 0; i < N; ++i) {
-            used_[i] = false;
+            slots_[i].pool    = this;
+            slots_[i].in_use_ = false;
+            slots_[i].ref_count_.store(0, std::memory_order_relaxed);
         }
     }
 
-    // mutex / condvar 不可复制或移动
     PoolBuffer(const PoolBuffer&)            = delete;
     PoolBuffer& operator=(const PoolBuffer&) = delete;
     PoolBuffer(PoolBuffer&&)                 = delete;
     PoolBuffer& operator=(PoolBuffer&&)      = delete;
 
-    /**
-     * @brief 使用 lambda 对池中所有元素进行初始化（推荐方式）
-     *
-     * @param init_func 接收 (T& element, size_t index) 的初始化函数
-     *                  在构造后、任何 acquire() 之前调用最合适
-     *
-     * 示例：
-     *   PoolBuffer<FrameData, 12> pool;
-     *   pool.initialize([](FrameData& frame, size_t idx) {
-     *       frame.index = idx;
-     *       frame.width = 1920;
-     *       frame.height = 1080;
-     *       frame.data.resize(1920*1080*2);  // NV12 等
-     *   });
-     */
-    void initialize(std::function<void(T&, size_type)> init_func) {
+    void initialize(std::function<void(T&, size_type)> init_func){
         std::lock_guard<std::mutex> lk(mutex_);   // 保证线程安全
-        for (size_type i = 0; i < N; ++i) {
-            init_func(buffer_[i], i);
+        for (size_type i = 0; i < N; ++i){
+            init_func(slots_[i].data, i);
         }
     }
 
-    /**
-     * @brief 简单遍历版本（只传引用，不传索引）
-     */
     void initialize(std::function<void(T&)> init_func) {
         std::lock_guard<std::mutex> lk(mutex_);
         for (size_type i = 0; i < N; ++i) {
-            init_func(buffer_[i]);
+            init_func(slots_[i].data);
         }
     }
 
-    // ---------------------------------------------------------------- 借出
+    // ================================================================ 借出
 
     /**
-     * @brief 借出一个空闲槽位（阻塞版本）
+     * @brief 借出一个空闲 Slot（阻塞版）
      *
-     * 若当前无空闲槽位，调用线程将阻塞，直到其他线程归还某个槽位为止。
+     * 若池中无空闲 Slot，调用线程阻塞直到有 Slot 被归还。
+     * 返回的 Slot 初始 ref_count = 1，调用者是第一个持有者。
      *
-     * @return 指向该槽位元素的指针，保证非 nullptr
+     * @return 非 nullptr 的 Slot 指针
      */
-    pointer acquire() {
+    Slot* acquire() {
         std::unique_lock<std::mutex> lk(mutex_);
-        // 等待直到有空闲槽位
         cv_.wait(lk, [this]{ return free_count_ > 0; });
         return acquire_impl();
     }
 
     /**
-     * @brief 尝试借出一个空闲槽位（非阻塞版本）
+     * @brief 借出一个空闲 Slot（非阻塞版）
      *
-     * 若当前无空闲槽位，立即返回 nullptr，不阻塞。
-     *
-     * @return 指向空闲槽位的指针；若无空闲槽位则返回 nullptr
+     * @return Slot 指针；无空闲时返回 nullptr
      */
-    pointer try_acquire() {
+    Slot* try_acquire() {
         std::lock_guard<std::mutex> lk(mutex_);
         if (free_count_ == 0) return nullptr;
         return acquire_impl();
     }
 
     /**
-     * @brief 带超时的借出（超时返回 nullptr）
+     * @brief 借出一个空闲 Slot（超时版）
      *
      * @param timeout_ms 最长等待毫秒数
-     * @return 指向空闲槽位的指针；超时则返回 nullptr
+     * @return Slot 指针；超时返回 nullptr
      */
-    pointer acquire_for(unsigned int timeout_ms) {
+    Slot* acquire_for(unsigned int timeout_ms) {
         std::unique_lock<std::mutex> lk(mutex_);
         bool ok = cv_.wait_for(
             lk,
@@ -148,128 +202,95 @@ public:
         return acquire_impl();
     }
 
-    // ---------------------------------------------------------------- 归还
+    // ================================================================ 强制归还（忽略引用计数）
 
     /**
-     * @brief 归还一个已借出的槽位
+     * @brief 强制将 Slot 归还池（不检查 ref_count，用于异常清理）
      *
-     * @param p 由 acquire() / try_acquire() 返回的指针
-     * @throws std::invalid_argument 若 p 不属于本池，或该槽位并未处于借出状态
+     * 正常流程应使用 slot->release() 自动归还。
+     * 此接口用于"持有者已确定不会再访问该 Slot"的强制回收场景。
+     *
+     * @throws std::invalid_argument 若 slot 不属于本池或未处于借出状态
      */
-    void release(pointer p) {
-        if (!p) return;
-
-        // 计算物理槽位下标
-        std::ptrdiff_t diff = p - buffer_.data();
-        if (diff < 0 || static_cast<size_type>(diff) >= N) {
-            throw std::invalid_argument(
-                "PoolBuffer::release: pointer does not belong to this pool");
-        }
-        size_type idx = static_cast<size_type>(diff);
-
+    void force_release(Slot* slot) {
+        if (!slot) return;
+        validate_slot(slot);
         {
             std::lock_guard<std::mutex> lk(mutex_);
-            if (!used_[idx]) {
+            if (!slot->in_use_) {
                 throw std::invalid_argument(
-                    "PoolBuffer::release: slot is not currently acquired");
+                    "PoolBuffer::force_release: slot is not currently acquired");
             }
-            used_[idx] = false;
+            slot->ref_count_.store(0, std::memory_order_relaxed);
+            slot->in_use_ = false;
             ++free_count_;
         }
-        // 通知一个正在等待的 acquire()
         cv_.notify_one();
     }
 
-    // ---------------------------------------------------------------- 状态查询
+    // ================================================================ 状态查询
 
-    /** 当前空闲槽位数量（线程安全） */
     size_type free_count() const {
         std::lock_guard<std::mutex> lk(mutex_);
         return free_count_;
     }
 
-    /** 当前已借出槽位数量（线程安全） */
     size_type used_count() const {
         std::lock_guard<std::mutex> lk(mutex_);
         return N - free_count_;
     }
 
-    /** 池是否已全部借出（线程安全） */
     bool exhausted() const {
         std::lock_guard<std::mutex> lk(mutex_);
         return free_count_ == 0;
     }
 
-    /** 池容量（编译期常量） */
     constexpr size_type capacity() const noexcept { return N; }
 
-    // ---------------------------------------------------------------- 外部锁接口（批量操作用）
-
-    /**
-     * @brief 加锁（阻塞等待）
-     *
-     * 当需要原子性地执行"查询状态 + 借出/归还"组合操作时使用。
-     * 注意：持锁期间不能再调用内部已加锁的 acquire()/release()，
-     *       应改为调用无锁的 acquire_unlocked()/release_unlocked()。
-     */
-    void lock()         const { mutex_.lock();   }
-    void unlock()       const { mutex_.unlock(); }
+    // ================================================================ 外部锁接口
+    void lock()         const { mutex_.lock();        }
+    void unlock()       const { mutex_.unlock();      }
     bool try_lock()     const { return mutex_.try_lock(); }
 
-    // ---------------------------------------------------------------- 无锁版本（在外部已持锁时使用）
-
-    /**
-     * @brief acquire 的无锁版本，须在外部 lock() 后调用
-     *
-     * @return 空闲槽位指针；若无空闲槽位则返回 nullptr
-     */
-    pointer acquire_unlocked() {
-        if (free_count_ == 0) return nullptr;
-        return acquire_impl();
-    }
-
-    /**
-     * @brief release 的无锁版本，须在外部 lock() 后调用
-     *
-     * @param p 由 acquire 系列函数返回的指针
-     */
-    void release_unlocked(pointer p) {
-        if (!p) return;
-        std::ptrdiff_t diff = p - buffer_.data();
-        assert(diff >= 0 && static_cast<size_type>(diff) < N);
-        size_type idx = static_cast<size_type>(diff);
-        assert(used_[idx]);
-        used_[idx] = false;
-        ++free_count_;
-        // 注意：外部持锁时不能 notify（死锁风险），
-        // 应在 unlock() 后手动调用 notify_waiters()
-    }
-
-    /**
-     * @brief 在外部解锁后调用，唤醒等待中的 acquire() 线程
-     */
-    void notify_waiters() {
+private:
+    // ---------------------------------------------------------------- 内部：引用归零时由 Slot::release() 回调
+    void return_slot(Slot* slot) {
+        {
+            std::lock_guard<std::mutex> lk(mutex_);
+            assert(slot->in_use_);
+            slot->in_use_ = false;
+            ++free_count_;
+        }
         cv_.notify_one();
     }
 
-private:
-    // 内部无锁借出实现（调用方须已持锁且 free_count_ > 0）
-    pointer acquire_impl() {
+    // ---------------------------------------------------------------- 内部：无锁借出（调用方已持锁且 free_count_ > 0）
+    Slot* acquire_impl() {
         for (size_type i = 0; i < N; ++i) {
-            if (!used_[i]) {
-                used_[i] = true;
+            if (!slots_[i].in_use_) {
+                slots_[i].in_use_ = true;
+//                slots_[i].ref_count_.store(1, std::memory_order_relaxed);
                 --free_count_;
-                return &buffer_[i];
+                return &slots_[i];
             }
         }
-        // 不应到达此处（调用前已确认 free_count_ > 0）
-        assert(false);
+        assert(false && "acquire_impl: no free slot found despite free_count_ > 0");
         return nullptr;
     }
 
-    std::array<T, N>        buffer_;      ///< 固定槽位存储
-    std::array<bool, N>     used_;        ///< 各槽位借出标记
-    size_type               free_count_;  ///< 当前空闲槽位数量
-    mutable std::mutex      mutex_;       ///< 互斥锁
-    std::condition_variable cv_;          ///< 用于阻塞等待空闲槽位
+    // ---------------------------------------------------------------- 内部：校验 slot 归属
+    void validate_slot(Slot* slot) const {
+        // 检查指针是否在 slots_ 数组范围内且对齐
+        const Slot* begin = slots_.data();
+        const Slot* end   = begin + N;
+        if (slot < begin || slot >= end) {
+            throw std::invalid_argument(
+                "PoolBuffer: slot does not belong to this pool");
+        }
+    }
+
+    std::array<Slot, N>     slots_;       ///< 固定槽位数组
+    size_type               free_count_;  ///< 空闲槽位计数
+    mutable std::mutex      mutex_;       ///< 池级互斥锁
+    std::condition_variable cv_;          ///< 空闲槽位通知
 };

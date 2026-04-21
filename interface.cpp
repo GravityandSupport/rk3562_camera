@@ -1,8 +1,8 @@
 #include "interface.h"
 
 
-std::shared_ptr<V4L2_NV12_Capture> capture;
-std::shared_ptr<V4L2_NV12_Capture> capture_33;
+V4L2_NV12_Capture capture;
+V4L2_NV12_Capture capture_33;
 
 H264_Encoder h264_encoder;
 

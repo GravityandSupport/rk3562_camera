@@ -1,6 +1,17 @@
 #include "v4l2_nv12_capture.h"
 #include "rgacontrol.h"
 
+int V4L2_NV12_Capture::create(uint32_t width, uint32_t height,
+            uint32_t buffer_num,
+            const std::string& video_dev,
+            const std::string& drm_dev){
+    width_ = width; height_ = height;
+    buffer_num_ = buffer_num;
+    video_dev_ = video_dev;
+    drm_dev_ = drm_dev;
+    return register_device();
+}
+
 int V4L2_NV12_Capture::register_device(){
     drm_buffers.reserve(buffer_num_);
     for (uint32_t i = 0; i < buffer_num_; ++i){
@@ -16,27 +27,23 @@ int V4L2_NV12_Capture::register_device(){
 //        LOG_DEBUG("drm buffer", i, db->get_dmabuf_fd(), db->size(), db->pitch());
     }
 
-    pool_buffer.initialize([&](DrmDumbBuffer& buf){
-        buf.create(width_, height_, 12);
-    });
-
 //    ref_array_manage.setSize(drm_buffers.size());
 //    ref_array_manage.setOnZeroBackCall([&](int idx){
 //        this->queue_dmabuf(idx);
 //    });
 
-    if (!cam->open_device(video_dev_.c_str())) {
+    if (!cam.open_device(video_dev_.c_str())) {
         std::cerr << "open v4l2 failed\n";
         for (auto p : drm_buffers) delete p;
         return -1;
     }
 
-    if (!cam->set_format(width_, height_, V4L2_PIX_FMT_NV12)) {
+    if (!cam.set_format(width_, height_, V4L2_PIX_FMT_NV12)) {
         std::cerr << "set_format failed\n";
         return -1;
     }
 
-    if (!cam->req_buffer_dmabuf(buffer_num_)) {
+    if (!cam.req_buffer_dmabuf(buffer_num_)) {
         std::cerr << "req_buffer_dmabuf failed\n";
         return -1;
     }
@@ -49,28 +56,26 @@ int V4L2_NV12_Capture::register_device(){
 }
 int V4L2_NV12_Capture::start_stream(){
     // 4) 启动流
-    if (!cam->start_stream()) {
+    if (!cam.start_stream()) {
         std::cerr << "start_stream failed\n";
         return -1;
     }
 
     dequeue_thread.set_loop_callback([this](SafeThread* self) ->bool{
         (void)self;
-        int index=-1;
-//            LOG_DEBUG("v4l2", video_dev_);
-        if(!cam->ThreadSafeBoundedQueue::timed_pop(index, 2000)){
-            LOG_DEBUG("取流队列", video_dev_, "timeout");
+        uint32_t bytesused = 0;
+        int index = -1;
+        bool ok =  cam.dequeue_dmabuf(5000, bytesused, index);
+        if (!ok) {
+            LOG_DEBUG("CAMERA", video_dev_, "no frame (timeout or interrupted)");
             return true;
         }
 
-        DrmDumbBuffer* drm_buffer = pool_buffer.try_acquire();
-        if(drm_buffer){
-            DrmDumbBuffer* src = acquire_dmabuf(index);
-            RgaControl::copy(src, drm_buffer, RgaControl::Format::NV12, RgaControl::Format::NV12);
-            forward_queue.push(drm_buffer);
-        }else{
-            LOG_DEBUG("取流队列", video_dev_, "环形缓冲区无缓冲帧可用");
-        }
+        VideoDrmBufPtr frame = std::make_shared<VideoDrmBuf>();
+        frame->video = this;
+        frame->buffer = acquire_dmabuf(index);
+        frames_ready(frame);
+
 //        LOG_DEBUG("取流队列", video_dev_, index);
         queue_dmabuf(index);
 
@@ -78,41 +83,18 @@ int V4L2_NV12_Capture::start_stream(){
     });
     dequeue_thread.start("nv12 dequeu thread");
 
-    for(auto& _thread : thread_pool){
-        _thread.set_loop_callback([this](SafeThread* self) ->bool{
-            (void)self;
-
-            DrmDumbBuffer* drm_buffer;
-            if(forward_queue.pop(drm_buffer)){
-                VideoDrmBufPtr frame = std::make_shared<VideoDrmBuf>();
-                frame->video = this;
-                frame->buffer = drm_buffer;
-                frames_ready(frame);
-
-                pool_buffer.release(drm_buffer);
-            }
-
-            return true;
-        });
-        _thread.start("V4L2_NV12_Capture");
-    }
-
     std::clog << "Streaming started. Waiting for frames...\n";
     return 0;
 }
 void V4L2_NV12_Capture::stop_stream(){
     std::clog << "Stopping stream...\n";
-    cam->stop_stream();
+    cam.stop_stream();
 
-    forward_queue.close();
     dequeue_thread.stop();
-    for(auto& _thread : thread_pool){
-        _thread.stop();
-    }
 }
 void V4L2_NV12_Capture::uninstall_device(){
     // 清理：关闭 v4l2 设备，释放 drm buffers
-    cam->close_device();
+    cam.close_device();
     for (auto p : drm_buffers) {
         delete p;
     }
@@ -124,7 +106,7 @@ int V4L2_NV12_Capture::queue_dmabuf(uint32_t idx){
     if(idx>=drm_buffers.size()) { return -1;}
     int dmabuf_fd = drm_buffers[idx]->get_dmabuf_fd();
     uint32_t buf_size = drm_buffers[idx]->size();
-    if (!cam->queue_dmabuf(idx, dmabuf_fd, buf_size)) {
+    if (!cam.queue_dmabuf(idx, dmabuf_fd, buf_size)) {
         std::cerr << "queue_dmabuf failed idx=" << idx << "\n";
         return -1;
     }
@@ -139,21 +121,3 @@ void V4L2_NV12_Capture::release_dmabuf(uint32_t idx){
     if(idx>=drm_buffers.size()) { return;}
 //    this->ref_array_manage.release(idx);
 }
-//bool V4L2_NV12_Capture::threadLoop(){
-//    int index=-1;
-//    if(!cam->ThreadSafeBoundedQueue::timed_pop(index, 2000)){
-//        LOG_DEBUG("取流队列", "timeout");
-//        return true;
-//    }
-
-//    this->ref_array_manage.acquire(index);
-
-//    //======================
-//    VideoBase::frames_ready(this, index);
-//    LOG_DEBUG("CAPTURE", index);
-//    //======================
-
-//    this->ref_array_manage.release(index);
-
-//    return true;
-//}

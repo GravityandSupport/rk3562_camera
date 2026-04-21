@@ -18,15 +18,12 @@
 class V4L2_NV12_Capture :  public VideoBase
 {
 public:
-    V4L2_NV12_Capture(): forward_queue(10){}
-    V4L2_NV12_Capture(uint32_t width, uint32_t height,
-            uint32_t buffer_num,
-            const std::string& video_dev,
-            const std::string& drm_dev = "/dev/dri/card0")
-            : width_(width), height_(height),
-                buffer_num_(buffer_num),
-                video_dev_(video_dev), drm_dev_(drm_dev), cam(std::make_shared<V4L2Camera>(buffer_num))
-                , forward_queue(10){}
+    V4L2_NV12_Capture() = default;
+
+    int create(uint32_t width, uint32_t height,
+                uint32_t buffer_num,
+                const std::string& video_dev,
+                const std::string& drm_dev = "/dev/dri/card0");
 
     int register_device();
     int start_stream();
@@ -42,17 +39,12 @@ private:
     uint32_t buffer_num_;
     std::string video_dev_, drm_dev_;
 
-    std::shared_ptr<V4L2Camera> cam;
+    V4L2Camera cam;
 
     std::vector<DrmDumbBuffer*> drm_buffers;
 //    RefArray ref_array_manage;
 
     SafeThread dequeue_thread;
-    std::array<SafeThread, 5> thread_pool; // 微型线程池
-    std::unordered_map<SafeThread*, TimerManager::TimerId> delay_timer;
-
-    PoolBuffer<DrmDumbBuffer, 10> pool_buffer;
-    ThreadSafeBoundedQueue<DrmDumbBuffer*> forward_queue;
 };
 
 #endif // V4L2_NV12_CAPTURE_H

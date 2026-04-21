@@ -30,28 +30,26 @@ MainWindow::MainWindow(QWidget *parent)
         return std::unique_ptr<TcpDevice>(new PC_UDP_ImageTrans());
     });
 
-    capture = std::make_shared<V4L2_NV12_Capture>(1920, 1072, 6, "/dev/video22");
-    if(capture->register_device()!=0){
+    if(capture.create(1920, 1072, 6, "/dev/video22")!=0){
         std::cerr << "注册设备失败\n";
         return;
     }
-    capture->start_stream();
-    capture_33 = std::make_shared<V4L2_NV12_Capture>(1920, 1072, 6, "/dev/video33");
-    if(capture_33->register_device()!=0){
+    capture.start_stream();
+    if(capture_33.create(1920, 1072, 6, "/dev/video33")!=0){
         std::cerr << "注册设备失败\n";
         return;
     }
-    capture_33->start_stream();
+    capture_33.start_stream();
 
 
-    capture->add_video(&video_merge);
-    capture_33->add_video(&video_merge);
-    video_merge.big_source.video = capture_33.get();
+    capture.add_video(&video_merge);
+    capture_33.add_video(&video_merge);
+    video_merge.big_source.video = &capture_33;
     video_merge.big_source.x = 0;
     video_merge.big_source.y = 0;
     video_merge.big_source.width_ = 640;
     video_merge.big_source.height_ = 480;
-    video_merge.small_source.video = capture.get();
+    video_merge.small_source.video = &capture;
     video_merge.small_source.x = 0;
     video_merge.small_source.y = 0;
     video_merge.small_source.width_ = 192;

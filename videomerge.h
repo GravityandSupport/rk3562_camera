@@ -5,7 +5,7 @@
 #include "refarray.h"
 #include "videobase.h"
 
-#include "RingBuffer.h"
+#include "PoolBuffer.h"
 #include "rgacontrol.h"
 
 class VideoMerge :  public VideoBase
@@ -23,12 +23,10 @@ public:
     };
     Node big_source, small_source;
 
-    DrmDumbBuffer drm_buffer_;
-
     void create(uint32_t width, uint32_t height,
                 const std::string& drm_dev = "/dev/dri/card0");
 
-    VideoMerge() = default;
+    VideoMerge(): process_queue(10){}
     virtual ~VideoMerge() = default;
 protected:
     virtual void process_frames(VideoDrmBufPtr frame) override;
@@ -36,6 +34,12 @@ private:
     uint32_t width_, height_;
     std::string drm_dev_;
 
+    std::condition_variable cv_;
     std::mutex      mutex_;
+
+    SafeThread thread_;
+    PoolBuffer<DrmDumbBuffer, 10> pool_buffer;
+
+    ThreadSafeBoundedQueue<VideoDrmBufPtr> process_queue;
 };
 

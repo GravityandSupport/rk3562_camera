@@ -7,6 +7,7 @@
 #include <mutex>
 #include <array>
 
+#include "PoolBuffer.h"
 
 class DrmDumbBuffer;
 class VideoBase;
@@ -60,8 +61,9 @@ public:
      */
 
     struct VideoDrmBuf {
-        VideoBase* video;
-        DrmDumbBuffer* buffer;
+        VideoBase* video=nullptr;
+        DrmDumbBuffer* buffer=nullptr;
+        ISlot* slot = nullptr;
     };
     using VideoDrmBufPtr = std::shared_ptr<VideoDrmBuf>;
     virtual void process_frames(VideoDrmBufPtr frame){(void)frame;}
