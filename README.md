@@ -37,35 +37,45 @@ flowchart TD
     end
     h264编码器启动-->h264编码线程
 
-
-    subgraph tcp微型线程池
+    subgraph ffmpeg封装线程
         direction TD
-		tcp_queue_pop[tcp queue_pop]-->tcp数据传输至接收端
-	end
+        h264编码完成-->ffmpeg封装输入
+        ffmpeg封装输入-->ffmpeg封装输出
+        ffmpeg封装输出-->ffmpeg封装保存为MP4文件[保存为MP4文件]
+    end
+
+    subgraph JPEG编码线程
+        direction TD
+        图像合并输出-->JPEG编码收输入
+        JPEG编码收输入-->JPEG编码完成
+    end
+
 
     subgraph tcp服务器线程
         direction TD
         tcp_epoll等待-->tcp有新连接
-        tcp有新连接-->tcp识别类型[tcp每1秒发送识别码,等待从机发送类型代码]
-        tcp识别类型-->tcp识别成功[tcp类型识别成功,实例化对应类对象,启动心跳检测,每5秒发送心跳包]
+        tcp有新连接[tcp每1秒发送识别码,等待从机发送类型代码]
+        tcp有新连接-->tcp识别成功[tcp类型识别成功,实例化对应类对象,启动心跳检测,每5秒发送心跳包]
+        tcp识别成功-->tcp服务器数据输出
 
         tcp_epoll等待-->tcp从机有数据过来
-        tcp从机有数据过来-->tcp类型是否成功{tcp类型是否成功}
-        tcp类型是否成功-->|是| tcp_queue_push[tcp queue_push]
-        tcp类型是否成功-->|否| tcp识别成功
+        tcp从机有数据过来-->tcp_queue_push[tcp queue_push]
+
+        tcp数据传输至接收端-->|将数据传输至对应的派生类|tcp服务器数据输出
+        subgraph tcp微型线程池
+            direction TD
+            tcp_queue_pop[tcp queue_pop]-->tcp数据传输至接收端
+        end
     end
     tcp_queue_push-->tcp_queue_pop
-    tcp数据传输至接收端-->|将数据传输至对应的派生类|tcp识别成功
     tcp服务器启动-->tcp服务器线程
-    tcp服务器启动-->tcp微型线程池
 
     subgraph pc端udp图传派生类
         direction TD
         pc端udp图传发送询问端口号[询问从机udp端口号]-->pc端udp图传h264裸流发送[将h264裸流数据分包处理后通过ip+port唯一id标识发送至从机]
     end
-    tcp识别成功-->pc端udp图传派生类
+    tcp服务器数据输出-->pc端udp图传派生类
     h264编码完成-->pc端udp图传h264裸流发送
-
 
 ```
 
