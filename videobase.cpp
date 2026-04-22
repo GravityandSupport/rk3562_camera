@@ -1,8 +1,11 @@
 #include "videobase.h"
 
-VideoBase::VideoBase(QObject *parent)
-    : QObject(parent)
+VideoBase::VideoBase()
 {
+
+}
+
+VideoBase::~VideoBase(){
 
 }
 

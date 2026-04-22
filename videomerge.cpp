@@ -64,7 +64,7 @@ void VideoMerge::process_frames(VideoDrmBufPtr frame){
         small_source.status=false;
 
         ISlot* slot = pool_buffer.try_acquire();
-        if(slot==nullptr) {return ;}
+        if(slot==nullptr) { LOG_DEBUG("video merge", "无帧可用"); return ;}
 
         DrmDumbBuffer* drm_buffer = static_cast<DrmDumbBuffer*>(slot->getdata());
         if(drm_buffer==nullptr) {return ;}

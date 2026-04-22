@@ -59,6 +59,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     h264_encoder.start_encoder(640, 480, 30);
 
+    dmaBuf_render = std::make_shared<DmaBufRenderer>(this);
+    dmaBuf_render->resize(1024, 600);
+
+    image_display.create(dmaBuf_render.get());
+    video_merge.add_video(&image_display);
 
     tcp_client.connect("192.168.31.149", 7777);
     // test

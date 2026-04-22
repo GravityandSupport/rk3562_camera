@@ -11,3 +11,5 @@ TcpServer tcp_server;
 TcpClient tcp_client;
 
 VideoMerge video_merge;
+
+ImageDisplay image_display;

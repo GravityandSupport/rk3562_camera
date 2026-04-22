@@ -17,6 +17,7 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+    std::shared_ptr<DmaBufRenderer> dmaBuf_render;
 private:
     Ui::MainWindow *ui;
 

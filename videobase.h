@@ -17,12 +17,11 @@ struct NV12_Packet{
     int idx;
 };
 
-class VideoBase : public QObject
+class VideoBase
 {
-    Q_OBJECT
 public:
-    explicit VideoBase(QObject *parent = nullptr);
-    virtual ~VideoBase() = default;
+    explicit VideoBase();
+    virtual ~VideoBase();
 
     VideoBase* parent_node = nullptr;
 
