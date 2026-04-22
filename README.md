@@ -10,40 +10,33 @@ flowchart TD
         tcp服务器启动-->udp启动
         udp启动-->video22启动
         video22启动-->video22_capture启动
-        video22_capture启动-->h264编码器启动
+        video22_capture启动-->video33启动
+        video33启动-->video33_capture启动
+        video33_capture启动-->h264编码器启动
     end
-
-    subgraph 摄像头线程
-        direction TD
-        摄像头poll等待-->缓冲区出队
-        缓冲区出队-->摄像头queue_push
-
-        缓冲区入队
-    end
-    video22启动-->摄像头线程
 
     subgraph nv12捕获线程池
-        摄像头queue_push-->摄像头queue_pop
-		摄像头queue_pop --> nv12捕获输出到接收端
-        nv12捕获输出到接收端-->3ms后nv12捕获帧引用次数释放
-	end
+        direction TD
+        摄像头poll等待-->缓冲区出队
+        缓冲区出队-->缓冲区入队
+    end
     video22_capture启动-->nv12捕获线程池
+    video33_capture启动-->nv12捕获线程池
+
+    subgraph 图像合并
+        缓冲区出队-->|两路输入|图像合并两路输入
+        图像合并两路输入-->图像合并缓冲池取一帧[从缓冲池中取出一帧，帧引用次数+1 缓冲池自动维护大概10个缓冲对象]
+        图像合并缓冲池取一帧-->图像合并输出[输出]
+        图像合并输出-->图像合并归还缓冲池一帧[帧引用次数-1 如果引用次数归0 归还缓冲池]
+    end
 
     subgraph h264编码线程
         direction TD
-        nv12捕获输出到接收端-->h264编码完成
-        h264编码完成-->h264编码输出到接收端
-        h264编码输出到接收端-->h264编码帧引用释放
+        图像合并输出-->h264编码接收输入
+        h264编码接收输入-->h264编码完成
     end
     h264编码器启动-->h264编码线程
 
-    subgraph 帧生命周期管理
-        direction TD
-        3ms后nv12捕获帧引用次数释放-->帧引用次数释放
-        h264编码帧引用释放-->帧引用次数释放
-        帧引用次数释放-->帧引用次数是否为0{帧引用次数是否为0}
-        帧引用次数是否为0-->|是| 缓冲区入队
-    end
 
     subgraph tcp微型线程池
         direction TD
@@ -71,14 +64,9 @@ flowchart TD
         pc端udp图传发送询问端口号[询问从机udp端口号]-->pc端udp图传h264裸流发送[将h264裸流数据分包处理后通过ip+port唯一id标识发送至从机]
     end
     tcp识别成功-->pc端udp图传派生类
-    h264编码输出到接收端-->pc端udp图传h264裸流发送
+    h264编码完成-->pc端udp图传h264裸流发送
 
-	subgraph 图像合并
-        direction TD
-        图像合并rga转一路输入格式[一路yuv转RGBA8888]-->图像合并rga合并[两路输入合并成nv12格式输出]
-    end
-    nv12捕获输出到接收端-->图像合并rga转一路输入格式
-    图像合并rga合并-->h264编码完成
+
 ```
 
 # TCP通讯协议
