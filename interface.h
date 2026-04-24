@@ -9,6 +9,8 @@
 #include "videomerge.h"
 #include "DmaBufRenderer.h"
 #include "ImageDisplay.h"
+#include "v4l2_usb_camera.h"
+#include "mjpeg_decoder.h"
 
 extern V4L2_NV12_Capture capture;
 extern V4L2_NV12_Capture capture_33;
@@ -21,5 +23,8 @@ extern TcpClient tcp_client;
 extern VideoMerge video_merge;
 
 extern ImageDisplay image_display;
+
+extern V4l2USBCamera usb_camera;
+extern MJPEG_Decoder mjpeg_decoder;
 
 #endif // INTERFACE_H

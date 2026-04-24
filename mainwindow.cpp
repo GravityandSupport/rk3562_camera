@@ -41,14 +41,26 @@ MainWindow::MainWindow(QWidget *parent)
     }
     capture_33.start_stream();
 
+    mjpeg_decoder.create(1920, 1072, 2);
+    usb_camera.add_video(&mjpeg_decoder);
+    usb_camera.register_device(1920, 1072, 6, "dev/video40");
 
     capture.add_video(&video_merge);
+#if 1
+    mjpeg_decoder.add_video(&video_merge);
+    video_merge.big_source.video = &mjpeg_decoder;
+    video_merge.big_source.x = 0;
+    video_merge.big_source.y = 0;
+    video_merge.big_source.width_ = 640;
+    video_merge.big_source.height_ = 480;
+#else
     capture_33.add_video(&video_merge);
     video_merge.big_source.video = &capture_33;
     video_merge.big_source.x = 0;
     video_merge.big_source.y = 0;
     video_merge.big_source.width_ = 640;
     video_merge.big_source.height_ = 480;
+#endif
     video_merge.small_source.video = &capture;
     video_merge.small_source.x = 0;
     video_merge.small_source.y = 0;

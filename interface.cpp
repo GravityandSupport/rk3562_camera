@@ -13,3 +13,6 @@ TcpClient tcp_client;
 VideoMerge video_merge;
 
 ImageDisplay image_display;
+
+V4l2USBCamera usb_camera;
+MJPEG_Decoder mjpeg_decoder;

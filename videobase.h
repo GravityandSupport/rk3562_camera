@@ -1,6 +1,5 @@
 #pragma once
 
-#include <QObject>
 #include <vector>
 #include <memory>
 #include <list>
@@ -15,6 +14,14 @@ class VideoBase;
 struct NV12_Packet{
     VideoBase* capture;
     int idx;
+};
+
+struct USB_Buffer{
+    void* start=nullptr;
+    size_t length=0;
+
+    int width=0;
+    int height=0;
 };
 
 class VideoBase
@@ -63,6 +70,8 @@ public:
         VideoBase* video=nullptr;
         DrmDumbBuffer* buffer=nullptr;
         ISlot* slot = nullptr;
+
+        USB_Buffer usb_buffer; // usb摄像头出流专属
     };
     using VideoDrmBufPtr = std::shared_ptr<VideoDrmBuf>;
     virtual void process_frames(VideoDrmBufPtr frame){(void)frame;}
