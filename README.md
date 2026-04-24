@@ -42,6 +42,12 @@ flowchart TD
         图像合并输出-->图像合并归还缓冲池一帧[帧引用次数-1 如果引用次数归0 归还缓冲池]
     end
 
+    subgraph 实时预览
+        图像合并输出-->预览OPENGL输入
+        预览OPENGL输入[OPENGL输入]-->预览生成纹理[生成纹理]
+        预览生成纹理-->预览推至GPU输出[推至GPU输出]
+    end
+
     subgraph h264编码线程
         direction TD
         图像合并输出-->h264编码接收输入
