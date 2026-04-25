@@ -127,8 +127,8 @@ bool V4l2USBCamera::dequeueBuffers(int timeout_ms, uint32_t &out_bytesused, int 
         return false;
     }
 
-    void* data = buffers_[buf.index].start;
-    size_t size = buf.bytesused;
+//    void* data = buffers_[buf.index].start;
+//    size_t size = buf.bytesused;
     // LOG_DEBUG("usb camera", data, size, buf.index);
 
     out_bytesused = buf.bytesused;
@@ -212,6 +212,8 @@ bool V4l2USBCamera::register_device(uint32_t width, uint32_t height, uint32_t bu
 }
 
 bool V4l2USBCamera::uninstall_device(){
+    thread_.stop();
+
     if(!stop_stream()){
         LOG_DEBUG("USB CAMERA", "stop_stream failed");
         return false;

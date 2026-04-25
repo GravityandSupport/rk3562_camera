@@ -16,3 +16,4 @@ ImageDisplay image_display;
 
 V4l2USBCamera usb_camera;
 MJPEG_Decoder mjpeg_decoder;
+UVC_Monitor uvc_monitor;

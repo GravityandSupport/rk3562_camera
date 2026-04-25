@@ -41,31 +41,21 @@ MainWindow::MainWindow(QWidget *parent)
     }
     capture_33.start_stream();
 
+    uvc_monitor.start();
     mjpeg_decoder.create(1920, 1072, 2);
-    usb_camera.add_video(&mjpeg_decoder);
-    usb_camera.register_device(1920, 1072, 6, "dev/video40");
+//    usb_camera.add_video(&mjpeg_decoder);
+//    usb_camera.register_device(1920, 1072, 6, "dev/video40");
 
-    capture.add_video(&video_merge);
-#if 1
+#if 0
     mjpeg_decoder.add_video(&video_merge);
-    video_merge.big_source.video = &mjpeg_decoder;
-    video_merge.big_source.x = 0;
-    video_merge.big_source.y = 0;
-    video_merge.big_source.width_ = 640;
-    video_merge.big_source.height_ = 480;
+    video_merge.setBigNode(&mjpeg_decoder, 0, 0, 640, 480);
 #else
     capture_33.add_video(&video_merge);
-    video_merge.big_source.video = &capture_33;
-    video_merge.big_source.x = 0;
-    video_merge.big_source.y = 0;
-    video_merge.big_source.width_ = 640;
-    video_merge.big_source.height_ = 480;
+    video_merge.setBigNode(&capture_33, 0, 0, 640, 480);
 #endif
-    video_merge.small_source.video = &capture;
-    video_merge.small_source.x = 0;
-    video_merge.small_source.y = 0;
-    video_merge.small_source.width_ = 192;
-    video_merge.small_source.height_ = 144;
+    capture.add_video(&video_merge);
+    video_merge.setSmallNode(&capture, 0, 0, 192, 144);
+
     video_merge.add_video(&h264_encoder);
     video_merge.create(640,  480);
 

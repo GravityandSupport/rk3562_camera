@@ -7,6 +7,7 @@
 
 #include "PoolBuffer.h"
 #include "rgacontrol.h"
+#include <memory>
 
 class VideoMerge :  public VideoBase
 {
@@ -17,20 +18,26 @@ public:
 
         uint32_t x, y;
         uint32_t width_, height_;
-        DrmDumbBuffer drm_buffer_;
+        std::shared_ptr<DrmDumbBuffer> drm_buffer_;
 
         im_rect rect;
     };
-    Node big_source, small_source;
 
     void create(uint32_t width, uint32_t height,
                 const std::string& drm_dev = "/dev/dri/card0");
+
+    Node setBigNode(const VideoBase* v, uint32_t nx, uint32_t ny, uint32_t nw, uint32_t nh);
+    Node setSmallNode(const VideoBase* v, uint32_t nx, uint32_t ny, uint32_t nw, uint32_t nh);
 
     VideoMerge(): process_queue(10){}
     virtual ~VideoMerge() = default;
 protected:
     virtual void process_frames(VideoDrmBufPtr frame) override;
 private:
+
+    Node big_source, small_source;
+    Node set(Node& node, const VideoBase* v, uint32_t nx, uint32_t ny, uint32_t nw, uint32_t nh);
+
     uint32_t width_, height_;
     std::string drm_dev_;
 
