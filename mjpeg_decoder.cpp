@@ -77,7 +77,33 @@ MJPEG_Decoder::~MJPEG_Decoder(){
     }
 }
 
+#include <fstream>
+static bool saveNV12ToFile(const void* data, size_t size, const std::string& filename) {
+    if (!data || size == 0) {
+        std::cerr << "Error: Invalid data pointer or size." << std::endl;
+        return false;
+    }
 
+    // 使用二进制模式打开文件
+    std::ofstream outfile(filename, std::ios::out | std::ios::binary);
+
+    if (!outfile.is_open()) {
+        std::cerr << "Error: Could not open file for writing: " << filename << std::endl;
+        return false;
+    }
+
+    // 写入数据
+    outfile.write(reinterpret_cast<const char*>(data), size);
+
+    if (outfile.good()) {
+        std::cout << "Successfully saved " << size << " bytes to " << filename << std::endl;
+        return true;
+    } else {
+        std::cerr << "Error: Occurred during writing to " << filename << std::endl;
+        return false;
+    }
+}
+static int frame_index = 0;
 
 bool MJPEG_Decoder::decode_frame(uint8_t* data, size_t length){
     MPP_RET ret = MPP_OK;
@@ -168,11 +194,24 @@ bool MJPEG_Decoder::decode_frame(uint8_t* data, size_t length){
             // size_t size = mpp_buffer_get_size(buffer);
             // void *ptr = mpp_buffer_get_ptr(buffer);
             // printf("编码成功，buffer.size=%ld, index=%d\n", size, index);
+            int width  = mpp_frame_get_width(frame);
+            int height = mpp_frame_get_height(frame);
+            int hor_stride = mpp_frame_get_hor_stride(frame);
+            int ver_stride = mpp_frame_get_ver_stride(frame);
+//            LOG_DEBUG("mjpeg", width, height, hor_stride, ver_stride);
 
             VideoDrmBufPtr drm_frame = std::make_shared<VideoDrmBuf>();
             drm_frame->video = this;
             drm_frame->buffer = drm_buf[index].get();
+            drm_frame->buffer->setWidth(hor_stride); // mjpeg解码后，并不会使用使用全部的内存空间，所以图像的宽高和内存的宽高并不匹配
+            drm_frame->buffer->setHeight(ver_stride);
+            drm_frame->buffer->setBpp(12);
             frames_ready(drm_frame);
+
+//            if(frame_index==10){
+//                saveNV12ToFile(drm_buf[index]->map(), hor_stride*ver_stride*3/2, "/mnt/nfs_dir/mjpeg.yuv");
+//            }
+//            frame_index++;
         }
         // ----------------------------------
 

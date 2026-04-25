@@ -46,6 +46,11 @@ public:
     uint32_t size() const { return size_; }
     uint32_t getSize() const { return width_*height_*bpp_/8; }
 
+    // 一些特殊情况，比如mjpeg解码后，并不会使用使用全部的内存空间，所以图像的宽高和内存的宽高并不匹配
+    void setWidth(uint32_t width) { width_ = width;}
+    void setHeight(uint32_t height) { height_ = height;}
+    void setBpp(uint32_t bpp) {bpp_ = bpp; }
+
     static int buffer_size;
 private:
     void destroy();
