@@ -52,8 +52,8 @@ bool RgaControl::resize(DrmDumbBuffer* src_drm, DrmDumbBuffer* dst_drm, Format _
     dst_height = dst_drm->height();
     dst_format = to_RKRgaFormat(_dst_format);
 
-    src_handle = importbuffer_fd(src_drm->get_dmabuf_fd(), src_drm->getSize());
-    dst_handle = importbuffer_fd(dst_drm->get_dmabuf_fd(), dst_drm->getSize());
+    src_handle = importbuffer_fd(src_drm->get_dmabuf_fd(), src_drm->bytesused());
+    dst_handle = importbuffer_fd(dst_drm->get_dmabuf_fd(), dst_drm->bytesused());
 
 
     src = wrapbuffer_handle(src_handle, src_width, src_height, src_format);
@@ -93,8 +93,8 @@ bool RgaControl::copy(DrmDumbBuffer* src_drm, DrmDumbBuffer* dst_drm, Format _sr
     dst_height = dst_drm->height();
     dst_format = to_RKRgaFormat(_dst_format);
 
-    src_handle = importbuffer_fd(src_drm->get_dmabuf_fd(), src_drm->getSize());
-    dst_handle = importbuffer_fd(dst_drm->get_dmabuf_fd(), dst_drm->getSize());
+    src_handle = importbuffer_fd(src_drm->get_dmabuf_fd(), src_drm->bytesused());
+    dst_handle = importbuffer_fd(dst_drm->get_dmabuf_fd(), dst_drm->bytesused());
 
 
     src = wrapbuffer_handle(src_handle, src_width, src_height, src_format);
@@ -134,15 +134,15 @@ bool RgaControl::resize_rect(DrmDumbBuffer* src_drm, DrmDumbBuffer* dst_drm, For
     dst_height = dst_drm->height();
     dst_format = to_RKRgaFormat(_dst_format);
 
-    src_handle = importbuffer_fd(src_drm->get_dmabuf_fd(), src_drm->getSize());
-    dst_handle = importbuffer_fd(dst_drm->get_dmabuf_fd(), dst_drm->getSize());
+    src_handle = importbuffer_fd(src_drm->get_dmabuf_fd(), src_drm->bytesused());
+    dst_handle = importbuffer_fd(dst_drm->get_dmabuf_fd(), dst_drm->bytesused());
 
 
     src = wrapbuffer_handle(src_handle, src_width, src_height, src_format);
     dst = wrapbuffer_handle(dst_handle, dst_width, dst_height, dst_format);
 
-//    LOG_DEBUG("rga", src_drm->width(), src_drm->height(), src_drm->getSize(),
-//                    dst_drm->width(), dst_drm->height(), dst_drm->getSize());
+//    LOG_DEBUG("rga", src_drm->width(), src_drm->height(), src_drm->bytesused(),
+//                    dst_drm->width(), dst_drm->height(), dst_drm->bytesused());
 
 //    ret = imcheck(src, dst, {}, {});
 //    if (IM_STATUS_NOERROR != ret) {
@@ -174,7 +174,7 @@ void RgaControl::test(){
     src_drm.create("/dev/dri/card0", 1024, 592, 12);
     dst_drm.create("/dev/dri/card0", 1920, 1072, 12);
 
-    size_t total_size = src_drm.getSize();
+    size_t total_size = src_drm.bytesused();
     std::ifstream ifs("/mnt/nfs_dir/nv12.yuv", std::ios::in | std::ios::binary);
     if (!ifs.is_open()) {
         std::cerr << "错误：无法打开文件 " << "/mnt/nfs_dir/nv12.yuv" << std::endl;
@@ -229,7 +229,7 @@ void RgaControl::test(){
     }
 
     // 写入整个数据块
-    ofs.write(reinterpret_cast<const char*>(dst_drm.map()), dst_drm.getSize());
+    ofs.write(reinterpret_cast<const char*>(dst_drm.map()), dst_drm.bytesused());
     ofs.flush(); // 刷新流缓冲区
     ofs.close();
 

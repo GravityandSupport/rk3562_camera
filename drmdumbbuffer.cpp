@@ -65,7 +65,7 @@ bool DrmDumbBuffer::create(const char* dev, uint32_t w, uint32_t h, uint32_t bpp
     memset(map_, 0x10, size_);
 
     buffer_size++;
-    LOG_DEBUG("drm buffer", buffer_size,  fd_, width_, height_, getSize());
+    LOG_DEBUG("drm buffer", buffer_size,  fd_, width_, height_/*, getSize()*/);
 
     return true;
 }

@@ -194,8 +194,8 @@ bool MJPEG_Decoder::decode_frame(uint8_t* data, size_t length){
             // size_t size = mpp_buffer_get_size(buffer);
             // void *ptr = mpp_buffer_get_ptr(buffer);
             // printf("编码成功，buffer.size=%ld, index=%d\n", size, index);
-            int width  = mpp_frame_get_width(frame);
-            int height = mpp_frame_get_height(frame);
+//            int width  = mpp_frame_get_width(frame);
+//            int height = mpp_frame_get_height(frame);
             int hor_stride = mpp_frame_get_hor_stride(frame);
             int ver_stride = mpp_frame_get_ver_stride(frame);
 //            LOG_DEBUG("mjpeg", width, height, hor_stride, ver_stride);
@@ -209,7 +209,8 @@ bool MJPEG_Decoder::decode_frame(uint8_t* data, size_t length){
             frames_ready(drm_frame);
 
 //            if(frame_index==10){
-//                saveNV12ToFile(drm_buf[index]->map(), hor_stride*ver_stride*3/2, "/mnt/nfs_dir/mjpeg.yuv");
+//                LOG_DEBUG("mjpeg", drm_frame->buffer->bytesused()/*, drm_frame->buffer->getSize()*/);
+////                saveNV12ToFile(drm_buf[index]->map(), hor_stride*ver_stride*3/2, "/mnt/nfs_dir/mjpeg.yuv");
 //            }
 //            frame_index++;
         }
