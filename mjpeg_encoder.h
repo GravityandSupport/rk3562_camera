@@ -29,6 +29,6 @@ private:
     MppEncCfg cfg = nullptr;
     MppBufferGroup group = nullptr;
 
-    std::vector<std::shared_ptr<DrmDumbBuffer>> drm_buf;
+//    std::vector<std::shared_ptr<DrmDumbBuffer>> drm_buf;
 };
 

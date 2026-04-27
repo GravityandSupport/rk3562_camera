@@ -11,6 +11,13 @@ MJPEG_Encoder::MJPEG_Encoder(){
         return;
     }
 
+    MppPollType timeout = MPP_POLL_BLOCK;
+    ret = mpi->control(ctx, MPP_SET_OUTPUT_TIMEOUT, &timeout);
+    if (MPP_OK != ret) {
+        printf("mpi control set output timeout %d ret %d\n", timeout, ret);
+        return;
+    }
+
     // 初始化解码器
     ret = mpp_init(ctx, MPP_CTX_ENC, MPP_VIDEO_CodingMJPEG);
     if (ret != MPP_OK) {
@@ -82,35 +89,6 @@ void MJPEG_Encoder::create(int width, int height, uint32_t buffer_num){
         return;
     }
 
-    drm_buf.resize(buffer_num_);
-    for(auto& buf : drm_buf){
-        buf = std::make_shared<DrmDumbBuffer>();
-        buf->create(m_width, m_height, 8);
-    }
-
-    // 按照官方文档描述，对于H.264/H.265 需要提供20+缓冲区，其他编码需要提供10+缓冲区，一开始就是因为提供的缓冲区比较少，所以导致申请不到mpp_buffer，后面我改到10个缓冲区后就正常了
-    ret = mpp_buffer_group_get_external(&group, MPP_BUFFER_TYPE_DRM);
-    if (ret) {
-        printf("failed to get mpp buffer group ret %d\n", ret);
-        goto MPP_OUT;
-    }
-
-    MppBufferInfo commit;
-    commit.type = MPP_BUFFER_TYPE_DRM;
-    commit.size = drm_buf[0]->size();
-    for (size_t i = 0; i < drm_buf.size(); i++){
-        commit.index = i;
-        commit.ptr = drm_buf[i]->map();
-        commit.fd = drm_buf[i]->get_dmabuf_fd();
-
-        ret = mpp_buffer_commit(group, &commit);
-        if (ret) {
-            printf("external buffer commit failed ret %d\n", ret);
-            break;
-        }
-    }
-
-MPP_OUT:
     return;
 }
 
@@ -161,15 +139,6 @@ bool MJPEG_Encoder::encode_frame(DrmDumbBuffer* drm_buf){
 
     mpp_frame_set_buffer(frame, frm_buf);
 
-    ret = mpp_buffer_get(group, &pkt_buf, m_width*m_height);
-    if (ret) {
-        printf("failed to get buffer for output packet ret %d\n", ret);
-        goto ENCODE_OUT;
-    }
-
-    mpp_packet_init_with_buffer(&packet, pkt_buf);
-    mpp_packet_set_length(packet, 0);
-
     ret = mpi->encode_put_frame(ctx, frame);
     if (ret) {
         printf("encode put frame failed\n");
@@ -183,14 +152,18 @@ bool MJPEG_Encoder::encode_frame(DrmDumbBuffer* drm_buf){
     }
 
     if (packet) {
-//        MppBuffer buffer = mpp_packet_get_buffer(packet);
-        void *ptr   = mpp_packet_get_pos(packet);
-        size_t len  = mpp_packet_get_length(packet);
-//        int index = mpp_buffer_get_index(buffer);
-        LOG_DEBUG("encoder", ptr, len/*, index*/);
-        saveJPEGToFile(ptr, len, std::string("/mnt/nfs_dir/mjpeg")+std::to_string(frame_index)+std::string(".jpg"));
+        uint8_t * data = (uint8_t *)mpp_packet_get_data(packet);
+        size_t size = mpp_packet_get_length(packet);
+        VideoFramePtr frame = std::make_shared<VideoFrame>();
+        frame->width = m_width;
+        frame->height = m_height;
+        frame->stride = m_width;
+        frame->data = std::make_shared<std::vector<uint8_t>>(data, data+size);
+//        LOG_DEBUG("h264", size);
+        frames_ready(frame);
+        saveJPEGToFile(data, size, std::string("/mnt/nfs_dir/mjpeg")+std::to_string(frame_index)+std::string(".jpg"));
     }
-    LOG_DEBUG("ENCODE", frm_buf, pkt_buf, frame, packet);
+//    LOG_DEBUG("ENCODE", frm_buf, pkt_buf, frame, packet);
 
 ENCODE_OUT:
     if(frm_buf){
@@ -217,7 +190,7 @@ void MJPEG_Encoder::process_frames(VideoDrmBufPtr frame){
     if(slot==nullptr) {return ;}
     slot->retain();
 //    LOG_DEBUG("mjpeg encode");
-    if(frame_index>10 && frame_index<20){
+    if(frame_index>100 && frame_index<106){
         encode_frame(static_cast<DrmDumbBuffer*>(slot->getdata()));
     }
     frame_index++;
