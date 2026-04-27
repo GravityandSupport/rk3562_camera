@@ -82,10 +82,32 @@ void MJPEG_Encoder::create(int width, int height, uint32_t buffer_num){
         return;
     }
 
-    ret = mpp_buffer_group_get_internal(&group, MPP_BUFFER_TYPE_DRM | MPP_BUFFER_FLAGS_CACHABLE);
+    drm_buf.resize(buffer_num_);
+    for(auto& buf : drm_buf){
+        buf = std::make_shared<DrmDumbBuffer>();
+        buf->create(m_width, m_height, 8);
+    }
+
+    // 按照官方文档描述，对于H.264/H.265 需要提供20+缓冲区，其他编码需要提供10+缓冲区，一开始就是因为提供的缓冲区比较少，所以导致申请不到mpp_buffer，后面我改到10个缓冲区后就正常了
+    ret = mpp_buffer_group_get_external(&group, MPP_BUFFER_TYPE_DRM);
     if (ret) {
         printf("failed to get mpp buffer group ret %d\n", ret);
         goto MPP_OUT;
+    }
+
+    MppBufferInfo commit;
+    commit.type = MPP_BUFFER_TYPE_DRM;
+    commit.size = drm_buf[0]->size();
+    for (size_t i = 0; i < drm_buf.size(); i++){
+        commit.index = i;
+        commit.ptr = drm_buf[i]->map();
+        commit.fd = drm_buf[i]->get_dmabuf_fd();
+
+        ret = mpp_buffer_commit(group, &commit);
+        if (ret) {
+            printf("external buffer commit failed ret %d\n", ret);
+            break;
+        }
     }
 
 MPP_OUT:
@@ -113,41 +135,24 @@ bool MJPEG_Encoder::encode_frame(DrmDumbBuffer* drm_buf){
     MppBuffer pkt_buf   = NULL;
     MppBuffer frm_buf   = NULL;
 
-    void *buf = nullptr;
-//    LOG_DEBUG("mjpeg encode");
-
     MppBufferInfo info;
     memset(&info, 0, sizeof(info));
     info.type = MPP_BUFFER_TYPE_DRM;   // RK 平台正确类型
     info.fd   = drm_buf->get_dmabuf_fd();
     info.size = drm_buf->bytesused();
 
-//    LOG_DEBUG("mjpeg encode");
-    ret = mpp_buffer_get(group, &pkt_buf, m_width*m_height*3/2);
-    if (ret) {
-        printf("failed to get buffer for output packet ret %d\n", ret);
-        goto ENCODE_OUT;
-    }
-
-//    LOG_DEBUG("mjpeg encode");
-//    buf = mpp_buffer_get_ptr(frm_buf);
-//    mpp_buffer_sync_begin(frm_buf);
-//    memcpy(buf, drm_buf->map(), drm_buf->bytesused());
-//    mpp_buffer_sync_end(frm_buf);
     ret = mpp_buffer_import(&frm_buf, &info);
     if (ret) {
         printf("mpp_buffer_import failed %d\n", ret);
         goto ENCODE_OUT;
     }
 
-//    LOG_DEBUG("mjpeg encode");
     ret = mpp_frame_init(&frame);
     if (ret) {
         printf("mpp_frame_init failed\n");
         goto ENCODE_OUT;
     }
 
-//    LOG_DEBUG("mjpeg encode");
     mpp_frame_set_width(frame, drm_buf->width());
     mpp_frame_set_height(frame, drm_buf->height());
     mpp_frame_set_hor_stride(frame, MPP_ALIGN(drm_buf->width(), 16));
@@ -156,29 +161,37 @@ bool MJPEG_Encoder::encode_frame(DrmDumbBuffer* drm_buf){
 
     mpp_frame_set_buffer(frame, frm_buf);
 
+    ret = mpp_buffer_get(group, &pkt_buf, m_width*m_height);
+    if (ret) {
+        printf("failed to get buffer for output packet ret %d\n", ret);
+        goto ENCODE_OUT;
+    }
+
     mpp_packet_init_with_buffer(&packet, pkt_buf);
     mpp_packet_set_length(packet, 0);
-//    LOG_DEBUG("mjpeg encode");
 
     ret = mpi->encode_put_frame(ctx, frame);
     if (ret) {
         printf("encode put frame failed\n");
         goto ENCODE_OUT;
     }
-//    LOG_DEBUG("mjpeg encode");
+
     ret = mpi->encode_get_packet(ctx, &packet);
     if (ret) {
         printf("encode get packet failed\n");
         goto ENCODE_OUT;
     }
-//    LOG_DEBUG("mjpeg encode");
+
     if (packet) {
+//        MppBuffer buffer = mpp_packet_get_buffer(packet);
         void *ptr   = mpp_packet_get_pos(packet);
         size_t len  = mpp_packet_get_length(packet);
-        LOG_DEBUG("encoder", ptr, len);
+//        int index = mpp_buffer_get_index(buffer);
+        LOG_DEBUG("encoder", ptr, len/*, index*/);
         saveJPEGToFile(ptr, len, std::string("/mnt/nfs_dir/mjpeg")+std::to_string(frame_index)+std::string(".jpg"));
     }
-//    LOG_DEBUG("mjpeg encode");
+    LOG_DEBUG("ENCODE", frm_buf, pkt_buf, frame, packet);
+
 ENCODE_OUT:
     if(frm_buf){
         mpp_buffer_put(frm_buf);
