@@ -67,6 +67,9 @@ MainWindow::MainWindow(QWidget *parent)
     image_display.create(dmaBuf_render.get());
     video_merge.add_video(&image_display);
 
+    mjpeg_encoder.create(640, 480, 2);
+    video_merge.add_video(&mjpeg_encoder);
+
     tcp_client.connect("192.168.31.149", 7777);
     // test
 #if 1

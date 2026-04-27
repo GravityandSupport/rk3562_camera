@@ -22,6 +22,7 @@ bool DrmDumbBuffer::create(const char* dev, uint32_t w, uint32_t h, uint32_t bpp
     req.width = width_;
     req.height = height_*bpp/8;
     req.bpp = 8;
+    bytesused_ = width_*height_*bpp_/8;
 
     if (drmIoctl(fd_, DRM_IOCTL_MODE_CREATE_DUMB, &req) < 0) {
         std::cerr << "DRM_IOCTL_MODE_CREATE_DUMB failed: " << strerror(errno) << "\n";

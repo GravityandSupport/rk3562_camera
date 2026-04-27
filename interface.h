@@ -12,6 +12,7 @@
 #include "v4l2_usb_camera.h"
 #include "mjpeg_decoder.h"
 #include "uvc_monitor.h"
+#include "mjpeg_encoder.h"
 
 extern V4L2_NV12_Capture capture;
 extern V4L2_NV12_Capture capture_33;
@@ -28,5 +29,7 @@ extern ImageDisplay image_display;
 extern V4l2USBCamera usb_camera;
 extern MJPEG_Decoder mjpeg_decoder;
 extern UVC_Monitor uvc_monitor;
+
+extern MJPEG_Encoder mjpeg_encoder;
 
 #endif // INTERFACE_H

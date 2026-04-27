@@ -49,7 +49,8 @@ public:
     void setWidth(uint32_t width) { width_ = width;}
     void setHeight(uint32_t height) { height_ = height;}
     void setBpp(uint32_t bpp) {bpp_ = bpp; }
-    uint32_t bytesused() { return width_*height_*bpp_/8; }
+    uint32_t bytesused() { return bytesused_;}
+    void bytesused(uint32_t _bytesused) {bytesused_ = _bytesused;}
 
     static int buffer_size;
 private:
@@ -64,6 +65,7 @@ private:
     int dmabuf_fd_;
     uint32_t width_, height_;
     uint32_t bpp_;
+    uint32_t bytesused_;
 };
 
 #endif // DRMDUMBBUFFER_H
