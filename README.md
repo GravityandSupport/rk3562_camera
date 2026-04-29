@@ -12,7 +12,8 @@ flowchart TD
         video22启动-->video22_capture启动
         video22_capture启动-->video33启动
         video33启动-->video33_capture启动
-        video33_capture启动-->h264编码器启动
+        video33_capture启动-->uvc检测启动
+        uvc检测启动-->h264编码器启动
     end
 
     subgraph nv12捕获线程池
@@ -22,6 +23,15 @@ flowchart TD
     end
     video22_capture启动-->nv12捕获线程池
     video33_capture启动-->nv12捕获线程池
+
+    subgraph UVC检测线程
+        direction TD
+        USB检测USB插入[USB插入]-->USB检测判断是否为V4L2设备[判断是否为V4L2设备并支持MJPEG输出]
+        USB检测判断是否为V4L2设备-->USB检测USB拨出[USB拨出]
+    end
+    uvc检测启动-->UVC检测线程
+    USB检测判断是否为V4L2设备--> |构造| USB摄像头捕获线程
+    USB检测USB拨出--> |析构| USB摄像头捕获线程
 
     subgraph USB摄像头捕获线程
         direction TD
@@ -42,6 +52,31 @@ flowchart TD
         图像合并输出-->图像合并归还缓冲池一帧[帧引用次数-1 如果引用次数归0 归还缓冲池]
     end
 
+    subgraph 文件预览
+        direction TD
+        文件预览获取文件名[获取文件名]-->文件预览文件为JPG文件[文件为JPG文件]
+        文件预览获取文件名[获取文件名]-->文件预览文件为MP4文件[文件为MP4文件]
+    end
+
+    subgraph 文件预览解码JPEG文件
+        direction TD
+        文件预览解码JPEG文件解码器输入[解码器输入]-->文件预览解码JPEG文件解码器输出[解码器输出]
+    end
+    文件预览文件为JPG文件-->文件预览解码JPEG文件
+
+    subgraph 文件预览解码MP4文件
+        direction TD
+        文件预览解码MP4文件解码器输入[解码器输入]-->文件预览解码MP4文件解码器输出[解码器输出]
+    end
+    文件预览文件为MP4文件-->文件预览解码MP4文件
+
+    subgraph 文件系统预览
+        文件预览解码JPEG文件解码器输出-->文件系统预览OPENGL输入
+        文件预览解码MP4文件解码器输出-->文件系统预览OPENGL输入
+        文件系统预览OPENGL输入[OPENGL输入]-->文件系统预览生成纹理[生成纹理]
+        文件系统预览生成纹理-->文件系统预览推至GPU输出[推至GPU输出]
+    end
+
     subgraph 实时预览
         图像合并输出-->预览OPENGL输入
         预览OPENGL输入[OPENGL输入]-->预览生成纹理[生成纹理]
@@ -54,6 +89,12 @@ flowchart TD
         h264编码接收输入-->h264编码完成
     end
     h264编码器启动-->h264编码线程
+
+    subgraph h264编码祼流保存
+        direction TD
+        h264编码完成-->h264编码祼流保存祼流输入
+        h264编码祼流保存祼流输入[祼流输入]-->h264编码祼流保存保存至本地[保存为.h264文件]
+    end
 
     subgraph ffmpeg封装线程
         direction TD
@@ -68,6 +109,11 @@ flowchart TD
         JPEG编码收输入-->JPEG编码完成
     end
 
+    subgraph JPEG编码保存为图片
+        direction TD
+        JPEG编码保存为图片获取文件名[获取文件名]-->JPEG编码保存为图片保存至本地[保存为JPG文件]
+    end
+    JPEG编码完成-->JPEG编码保存为图片
 
     subgraph tcp服务器线程
         direction TD
@@ -94,6 +140,7 @@ flowchart TD
     end
     tcp服务器数据输出-->pc端udp图传派生类
     h264编码完成-->pc端udp图传h264裸流发送
+
 ```
 
 # TCP通讯协议
