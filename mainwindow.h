@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QKeyEvent>
 
 #include "interface.h"
 
@@ -21,6 +22,8 @@ public:
 private:
     Ui::MainWindow *ui;
 
-
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
 };
 #endif // MAINWINDOW_H

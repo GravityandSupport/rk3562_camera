@@ -59,7 +59,9 @@ MainWindow::MainWindow(QWidget *parent)
     video_merge.add_video(&h264_encoder);
     video_merge.create(640,  480);
 
+    h264_nalu_save.create();
     h264_encoder.start_encoder(640, 480, 30);
+    h264_encoder.add_video(&h264_nalu_save);
 
     dmaBuf_render = std::make_shared<DmaBufRenderer>(this);
     dmaBuf_render->resize(1024, 600);
@@ -90,5 +92,27 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (event->isAutoRepeat())
+            return;  // 忽略长按重复
+
+    qDebug() << "按键按下:" << event->key();
+
+    if (event->key() == Qt::Key_VolumeDown) {
+        EventBus::instance().publish("/video/h264/nalu_save", "{\"frame_num\":5}");
+        qDebug() << "按下了 Key_VolumeDown";
+    }
+}
+
+void MainWindow::keyReleaseEvent(QKeyEvent *event)
+{
+    if (event->isAutoRepeat())
+            return;  // 忽略长按重复
+
+    qDebug() << "按键释放:" << event->key();
 }
 
