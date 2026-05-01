@@ -63,6 +63,9 @@ MainWindow::MainWindow(QWidget *parent)
     h264_encoder.start_encoder(640, 480, 30);
     h264_encoder.add_video(&h264_nalu_save);
 
+    h264_decoder.create(640, 480, 2);
+    h264_encoder.add_video(&h264_decoder);
+
     dmaBuf_render = std::make_shared<DmaBufRenderer>(this);
     dmaBuf_render->resize(1024, 600);
 

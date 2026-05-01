@@ -5,7 +5,7 @@
 
 #include "JsonWrapper.h"
 
-H264_NaluSave::H264_NaluSave() : process_queue(3), file_queue(20)
+H264_NaluSave::H264_NaluSave() : process_queue(3), file_queue(40)
 {
     thread_.set_loop_callback([this](SafeThread* self) ->bool{
         (void)self;

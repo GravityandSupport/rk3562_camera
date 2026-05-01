@@ -15,6 +15,7 @@
 #include "mjpeg_encoder.h"
 #include  "h264_nalusave.h"
 #include "JsonWrapper.h"
+#include "h264_decoder.h"
 
 extern V4L2_NV12_Capture capture;
 extern V4L2_NV12_Capture capture_33;
@@ -35,5 +36,7 @@ extern UVC_Monitor uvc_monitor;
 extern MJPEG_Encoder mjpeg_encoder;
 
 extern H264_NaluSave h264_nalu_save;
+
+extern H264_Decoder h264_decoder;
 
 #endif // INTERFACE_H

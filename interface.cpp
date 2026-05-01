@@ -21,3 +21,5 @@ UVC_Monitor uvc_monitor;
 H264_NaluSave h264_nalu_save;
 
 MJPEG_Encoder mjpeg_encoder;
+
+H264_Decoder h264_decoder;
