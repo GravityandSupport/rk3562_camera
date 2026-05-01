@@ -5,6 +5,8 @@ bool JsonWrapper::get(const std::string& path, T& value) {
     try {
         const nlohmann::json* current = &json;
 
+        std::lock_guard<std::mutex> lock(mutex_);
+
         size_t start = 0;
         size_t end = 0;
 
@@ -37,6 +39,8 @@ bool JsonWrapper::get(const std::string& path, T& value) {
 template<typename T>
 void JsonWrapper::import(const std::string& path, const T& value) {
     nlohmann::json* current = &json;
+
+    std::lock_guard<std::mutex> lock(mutex_);
 
     size_t start = 0;
     size_t end = 0;

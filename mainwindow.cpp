@@ -103,7 +103,20 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
     qDebug() << "按键按下:" << event->key();
 
     if (event->key() == Qt::Key_VolumeDown) {
-        EventBus::instance().publish("/video/h264/nalu_save", "{\"frame_num\":5}");
+        auto now = std::chrono::system_clock::now();
+        auto in_time_t = std::chrono::system_clock::to_time_t(now);
+        std::tm bt = *std::localtime(&in_time_t);
+
+        std::vector<std::string> filename;
+        for(int i=0; i<5; i++){
+            std::stringstream ss;
+            ss << "/mnt/nfs_dir/" << std::put_time(&bt, "%Y-%m-%d-%S%M") << "-" << i  << ".h264";
+            filename.push_back(ss.str());
+        }
+        JsonWrapper js;
+        js.import("filename", filename);
+//        LOG_DEBUG("debug", js.dump());
+        EventBus::instance().publish("/video/h264/nalu_save", js.dump());
         qDebug() << "按下了 Key_VolumeDown";
     }
 }

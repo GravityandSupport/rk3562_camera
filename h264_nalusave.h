@@ -26,11 +26,12 @@ private:
 
     friend ImplDevice;
 
-    std::atomic_int number_of_photos_taken{0};
-    std::atomic_bool enable_switch{false};
-
     SafeThread thread_;
     ThreadSafeBoundedQueue<VideoFramePtr> process_queue;
+
+    std::mutex mutex_;
+
+    ThreadSafeBoundedQueue<std::string> file_queue;
 };
 
 #endif // H264_NALUSAVE_H

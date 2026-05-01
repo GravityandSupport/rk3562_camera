@@ -23,6 +23,8 @@ public:
     virtual ~JsonWrapper() = default;
 private:
     nlohmann::json json;
+
+    std::mutex mutex_;
 };
 
 #include "JsonWrapper.inl"

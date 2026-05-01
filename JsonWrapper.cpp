@@ -19,6 +19,8 @@ std::string JsonWrapper::dump(const int indent) {
 void JsonWrapper::import(const std::string& path, const nlohmann::json& value) {
     nlohmann::json* current = &json;
 
+    std::lock_guard<std::mutex> lock(mutex_);
+
     size_t start = 0;
     size_t end = 0;
 
