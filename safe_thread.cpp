@@ -15,10 +15,10 @@ void SafeThread::start(const std::string& name) {
     thread_name_ = name;
     state_ = State::Starting;
     quit_.store(false, std::memory_order_relaxed);
-
+    LOG_DEBUG("debug");
     // thread_ 的赋值在锁内，不会与其他 start() 并发
     thread_ = std::thread(&SafeThread::eventLoop, this);
-
+    LOG_DEBUG("debug");
     // 等待 eventLoop 完成初始化（进入 Running 状态）
     cv_.wait(lock, [this] { return state_ != State::Starting; });
 
@@ -28,13 +28,10 @@ void SafeThread::start(const std::string& name) {
 void SafeThread::stop() {
     std::unique_lock<std::mutex> lock(mtx_);
 
-    if (state_ != State::Running) {
-        LOG_DEBUG(thread_name_, "线程未运行，忽略 stop()");
-        return;
+    if (state_ == State::Running) {
+        state_ = State::Stopping;
+        quit_.store(true, std::memory_order_release);
     }
-
-    state_ = State::Stopping;
-    quit_.store(true, std::memory_order_release);
 
     // 取出 thread_ 后解锁再 join，避免死锁
     // （eventLoop 结束时会 lock(mtx_) 修改 state_）
