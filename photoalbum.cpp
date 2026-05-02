@@ -5,6 +5,7 @@
 #include <qdebug.h>
 #include "outLog.h"
 #include <forward_list>
+#include <QMessageBox>
 
 namespace fs = std::experimental::filesystem;
 
@@ -42,10 +43,23 @@ PhotoAlbum::PhotoAlbum(const std::string& path, QWidget *parent) : QWidget(paren
             this, [=](){
         if(load_path==path){
             this->hide();
+        }else{
+            fs::path p(load_path);
+            load_path = p.parent_path().string();
+            loadPathFile(load_path);
         }
-        fs::path p(load_path);
-        load_path = p.parent_path().string();
-        loadPathFile(load_path);
+    });
+
+    connect(listWidget.get(), &QListWidget::itemDoubleClicked,
+            this, [=](QListWidgetItem *item) {
+
+        std::string path = item->data(Qt::UserRole).toString().toStdString();
+        LOG_DEBUG("点击文件路径", path);
+
+        fs::path p(path);
+        if(fs::is_directory(p)){
+            loadPathFile(path);
+        }
     });
 }
 
@@ -76,6 +90,7 @@ void PhotoAlbum::create(){
             item->setText(QString::fromStdString(p.filename().string()));
             item->setTextAlignment(Qt::AlignHCenter); // 文字居中（非常重要）
             item->setSizeHint(QSize(180, 140));
+            item->setData(Qt::UserRole, QString::fromStdString(p.string()));
             listWidget->addItem(item);
         }
 
@@ -113,7 +128,7 @@ void PhotoAlbum::create(){
                 JsonWrapper js;
                 js.import("filename", n);
                 impl_device->publish("/video/videoplay/create", js.dump());
-                SafeThread::msDelay(50);
+                SafeThread::msDelay(30);
                 if(quit_.load(std::memory_order_relaxed)==true){return false;}
             }
         } catch (const fs::filesystem_error& e) {
@@ -151,4 +166,17 @@ void PhotoAlbum::keyReleaseEvent(QKeyEvent *event)
             return;  // 忽略长按重复
 
     LOG_DEBUG("按键释放", event->key());
+}
+void PhotoAlbum::showEvent(QShowEvent *event)
+{
+    QWidget::showEvent(event);
+    this->setFocus();   // 显示时抢焦点
+}
+
+void PhotoAlbum::hideEvent(QHideEvent *event)
+{
+    QWidget::hideEvent(event);
+
+    if (parentWidget())
+        parentWidget()->setFocus();  // 隐藏时还焦点
 }

@@ -24,6 +24,9 @@ public:
 protected:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
+
+    void showEvent(QShowEvent *event);
+    void hideEvent(QHideEvent *event);
 private:
     std::string path_;
 
