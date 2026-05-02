@@ -15,10 +15,10 @@ void SafeThread::start(const std::string& name) {
     thread_name_ = name;
     state_ = State::Starting;
     quit_.store(false, std::memory_order_relaxed);
-    LOG_DEBUG("debug");
+
     // thread_ 的赋值在锁内，不会与其他 start() 并发
     thread_ = std::thread(&SafeThread::eventLoop, this);
-    LOG_DEBUG("debug");
+
     // 等待 eventLoop 完成初始化（进入 Running 状态）
     cv_.wait(lock, [this] { return state_ != State::Starting; });
 

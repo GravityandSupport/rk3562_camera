@@ -64,7 +64,7 @@ MainWindow::MainWindow(QWidget *parent)
     h264_encoder.add_video(&h264_nalu_save);
 
     h264_decoder.create(640, 480, 2);
-    h264_encoder.add_video(&h264_decoder);
+//    h264_encoder.add_video(&h264_decoder);
 
     dmaBuf_render = std::make_shared<DmaBufRenderer>(this);
     dmaBuf_render->resize(1024, 600);
@@ -76,6 +76,11 @@ MainWindow::MainWindow(QWidget *parent)
     video_merge.add_video(&mjpeg_encoder);
 
     tcp_client.connect("192.168.31.149", 7777);
+
+    photo_album = std::make_shared<PhotoAlbum>("/mnt/nfs_dir", this);
+    photo_album->setGeometry(0, 0, 1024, 600);
+    photo_album->hide();
+    photo_album->create();
     // test
 #if 1
     UdpSocket::getInstance().registerCallback("192.168.31.149", 777, [&](const char* data, size_t len,
@@ -121,6 +126,13 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 //        LOG_DEBUG("debug", js.dump());
         EventBus::instance().publish("/video/h264/nalu_save", js.dump());
         qDebug() << "按下了 Key_VolumeDown";
+    }else if(event->key() == Qt::Key_VolumeUp){
+        if(photo_album->isHidden()){
+            photo_album->loadPathFile("/mnt/nfs_dir");
+            photo_album->show();
+        }else{
+            photo_album->hide();
+        }
     }
 }
 

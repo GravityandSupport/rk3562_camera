@@ -204,15 +204,15 @@ bool H264_Decoder::decode_frame(uint8_t* data, size_t length){
                 RK_U32 ver_stride = mpp_frame_get_ver_stride(frame);
                 RK_U32 buf_size = mpp_frame_get_buf_size(frame);
                 int index = mpp_buffer_get_index(buffer);
-                LOG_DEBUG("h264 decoder", width, height, hor_stride, ver_stride, buf_size, index);
+//                LOG_DEBUG("h264 decoder", width, height, hor_stride, ver_stride, buf_size, index);
                 drm_buf[index]->bytesused(hor_stride*ver_stride*3/2);
 
-                if(frame_index%100==0 && frame_index<1000){
-                    std::ostringstream oss;
-                    oss << "/mnt/nfs_dir/h264_decode-" << frame_index << ".yuv";
-                    saveNV12ToFile(drm_buf[index]->map(), drm_buf[index]->bytesused(), oss.str());
-                }
-                frame_index++;
+//                if(frame_index%100==0 && frame_index<1000){
+//                    std::ostringstream oss;
+//                    oss << "/mnt/nfs_dir/h264_decode-" << frame_index << ".yuv";
+//                    saveNV12ToFile(drm_buf[index]->map(), drm_buf[index]->bytesused(), oss.str());
+//                }
+//                frame_index++;
             }
             break;
         }
