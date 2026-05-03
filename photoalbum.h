@@ -12,9 +12,7 @@
 #include "EventBus.h"
 #include "qteventdevice.h"
 #include "mjpeg_decoder.h"
-#include "DmaBufRenderer.h"
-#include "ImageDisplay.h"
-#include "videoplay.h"
+#include "videoplaybackwidget.h"
 
 class PhotoAlbum : public QWidget
 {
@@ -51,11 +49,7 @@ private:
 
     std::shared_ptr<QListWidget> listWidget;
     std::shared_ptr<QPushButton> backButton;
-
-    std::shared_ptr<DmaBufRenderer> dmaBuf_render;
-    ImageDisplay image_display;
-
-    VideoPlay video_play;
+    std::shared_ptr<VideoPlaybackWidget> video_play_widget;
 
     void onItemActivated(QListWidgetItem *item);
     void onBackButtonClick();

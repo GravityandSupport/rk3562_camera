@@ -48,17 +48,14 @@ PhotoAlbum::PhotoAlbum(const std::string& path, QWidget *parent) : QWidget(paren
             this, [=](QListWidgetItem *item) {
         onItemActivated(item);
     });
+
+    video_play_widget = std::make_shared<VideoPlaybackWidget>(this);
+    video_play_widget->create();
+    video_play_widget->resize(1024, 600);
+    video_play_widget->hide();
 }
 
 void PhotoAlbum::create(){
-    dmaBuf_render = std::make_shared<DmaBufRenderer>(this);
-    dmaBuf_render->resize(1024, 600);
-    dmaBuf_render->hide();
-
-    video_play.create(1024, 592, 4);
-    image_display.create(dmaBuf_render.get());
-    video_play.add_video(&image_display);
-
     impl_device = std::make_shared<ImplDevice>();
     impl_device->subscribe("/video/videoplay/create");
     impl_device->instance = this;
@@ -145,8 +142,11 @@ void PhotoAlbum::onItemActivated(QListWidgetItem *item){
     if(fs::is_directory(p)){
         loadPathFile(path);
     }else if(p.extension() == ".jpg"){
-        dmaBuf_render->show();
-        video_play.decode_jpeg(p.string());
+        video_play_widget->show();
+        JsonWrapper js;
+        js.import("filename", p.string());
+        LOG_DEBUG("phout album", p.string());
+        EventBus::instance().publish("/video/videoplay/decode", js.dump());
     }
 }
 void PhotoAlbum::onBackButtonClick(){
