@@ -8,9 +8,12 @@
 #include <memory>
 #include <vector>
 
+
 class MJPEG_Encoder : public VideoBase
 {
 public:
+    VideoNodeState node_state;
+
     void create(int width, int height, uint32_t buffer_num);
 
     bool encode_frame(DrmDumbBuffer* drm_buf);

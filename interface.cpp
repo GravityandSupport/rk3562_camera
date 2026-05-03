@@ -25,3 +25,5 @@ MJPEG_Encoder mjpeg_encoder;
 H264_Decoder h264_decoder;
 
 std::shared_ptr<PhotoAlbum> photo_album;
+
+PhotoSave photo_save;

@@ -17,6 +17,7 @@
 #include "JsonWrapper.h"
 #include "h264_decoder.h"
 #include "photoalbum.h"
+#include "photosave.h"
 
 extern V4L2_NV12_Capture capture;
 extern V4L2_NV12_Capture capture_33;
@@ -41,5 +42,8 @@ extern H264_NaluSave h264_nalu_save;
 extern H264_Decoder h264_decoder;
 
 extern std::shared_ptr<PhotoAlbum> photo_album;
+
+extern PhotoSave photo_save;
+
 
 #endif // INTERFACE_H

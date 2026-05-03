@@ -92,16 +92,6 @@ void MJPEG_Encoder::create(int width, int height, uint32_t buffer_num){
     return;
 }
 
-static int frame_index = 0;
-static bool saveJPEGToFile(const void* data, size_t size, const std::string& filename){
-    FILE *fp = fopen(filename.c_str(), "wb");
-    if(fp){
-        fwrite(data, 1, size, fp);
-        fclose(fp);
-        return true;
-    }
-    return false;
-}
 
 bool MJPEG_Encoder::encode_frame(DrmDumbBuffer* drm_buf){
     MPP_RET ret = MPP_OK;
@@ -161,7 +151,7 @@ bool MJPEG_Encoder::encode_frame(DrmDumbBuffer* drm_buf){
         frame->data = std::make_shared<std::vector<uint8_t>>(data, data+size);
 //        LOG_DEBUG("h264", size);
         frames_ready(frame);
-        saveJPEGToFile(data, size, std::string("/mnt/nfs_dir/mjpeg")+std::to_string(frame_index)+std::string(".jpg"));
+//        saveJPEGToFile(data, size, std::string("/mnt/nfs_dir/mjpeg")+std::to_string(frame_index)+std::string(".jpg"));
     }
 //    LOG_DEBUG("ENCODE", frm_buf, pkt_buf, frame, packet);
 
@@ -189,11 +179,9 @@ void MJPEG_Encoder::process_frames(VideoDrmBufPtr frame){
     ISlot* slot = frame->slot;
     if(slot==nullptr) {return ;}
     slot->retain();
-//    LOG_DEBUG("mjpeg encode");
-    if(frame_index>100 && frame_index<106){
+    if(node_state.isEnabled()){
         encode_frame(static_cast<DrmDumbBuffer*>(slot->getdata()));
     }
-    frame_index++;
     slot->release();
 }
 

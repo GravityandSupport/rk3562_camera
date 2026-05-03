@@ -51,19 +51,19 @@ MainWindow::MainWindow(QWidget *parent)
     video_merge.setBigNode(&mjpeg_decoder, 0, 0, 640, 480);
 #else
     capture_33.add_video(&video_merge);
-    video_merge.setBigNode(&capture_33, 0, 0, 640, 480);
+    video_merge.setBigNode(&capture_33, 0, 0, 1024, 592);
 #endif
     capture.add_video(&video_merge);
     video_merge.setSmallNode(&capture, 0, 0, 192, 144);
 
     video_merge.add_video(&h264_encoder);
-    video_merge.create(640,  480);
+    video_merge.create(1024, 592);
 
     h264_nalu_save.create();
-    h264_encoder.start_encoder(640, 480, 30);
+    h264_encoder.start_encoder(1024, 592, 30);
     h264_encoder.add_video(&h264_nalu_save);
 
-    h264_decoder.create(640, 480, 2);
+    h264_decoder.create(1024, 592, 2);
 //    h264_encoder.add_video(&h264_decoder);
 
     dmaBuf_render = std::make_shared<DmaBufRenderer>(this);
@@ -72,8 +72,10 @@ MainWindow::MainWindow(QWidget *parent)
     image_display.create(dmaBuf_render.get());
     video_merge.add_video(&image_display);
 
-    mjpeg_encoder.create(640, 480, 10);
+    mjpeg_encoder.create(1024, 592, 10);
     video_merge.add_video(&mjpeg_encoder);
+    mjpeg_encoder.add_video(&photo_save);
+    photo_save.create(&mjpeg_encoder);
 
     tcp_client.connect("192.168.31.149", 7777);
 
@@ -110,7 +112,15 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
     qDebug() << "按键按下:" << event->key();
 
-    if (event->key() == Qt::Key_VolumeDown) {
+    if(event->key() == Qt::Key_VolumeUp){
+        if(photo_album->isHidden()){
+            photo_album->loadPathFile("/mnt/nfs_dir");
+            photo_album->show();
+        }else{
+            photo_album->hide();
+        }
+    }else if (event->key() == Qt::Key_VolumeDown) {
+#if 0
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
         std::tm bt = *std::localtime(&in_time_t);
@@ -123,16 +133,17 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         }
         JsonWrapper js;
         js.import("filename", filename);
-//        LOG_DEBUG("debug", js.dump());
         EventBus::instance().publish("/video/h264/nalu_save", js.dump());
         qDebug() << "按下了 Key_VolumeDown";
-    }else if(event->key() == Qt::Key_VolumeUp){
-        if(photo_album->isHidden()){
-            photo_album->loadPathFile("/mnt/nfs_dir");
-            photo_album->show();
-        }else{
-            photo_album->hide();
-        }
+#else
+        auto now = std::chrono::system_clock::now();
+        auto in_time_t = std::chrono::system_clock::to_time_t(now);
+        std::tm bt = *std::localtime(&in_time_t);
+
+        std::stringstream ss;
+        ss << "/mnt/nfs_dir/" << std::put_time(&bt, "%Y-%m-%d-%S%M") << ".jpg";
+        photo_save.save(ss.str());
+#endif
     }
 }
 

@@ -7,6 +7,7 @@
 #include <array>
 
 #include "PoolBuffer.h"
+#include "VideoNodeState.h"
 
 class DrmDumbBuffer;
 class VideoBase;
