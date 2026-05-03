@@ -27,3 +27,5 @@ H264_Decoder h264_decoder;
 std::shared_ptr<PhotoAlbum> photo_album;
 
 PhotoSave photo_save;
+
+MP4_Muxer mp4_muxer;

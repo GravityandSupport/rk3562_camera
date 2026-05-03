@@ -30,6 +30,8 @@ public:
     void start(const std::string& name = "default");
     void stop();
 
+    bool isRunning() ;
+
     void set_start_callback(ThreadCallback cb);
     void set_end_callback(ThreadCallback cb);
     void set_loop_callback(ThreadCallback cb);

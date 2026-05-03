@@ -59,9 +59,15 @@ MainWindow::MainWindow(QWidget *parent)
     video_merge.add_video(&h264_encoder);
     video_merge.create(1024, 592);
 
+    mp4_muxer.create(&h264_encoder);
     h264_nalu_save.create(&h264_encoder);
     h264_encoder.start_encoder(1024, 592, 30);
     h264_encoder.add_video(&h264_nalu_save);
+    h264_encoder.add_video(&mp4_muxer);
+
+#if 1
+//    mp4_muxer.save("xxx");
+#endif
 
     h264_decoder.create(1024, 592, 2);
 //    h264_encoder.add_video(&h264_decoder);
@@ -120,7 +126,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
             photo_album->hide();
         }
     }else if (event->key() == Qt::Key_VolumeDown) {
-#if 1
+#if 0
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
         std::tm bt = *std::localtime(&in_time_t);
@@ -137,6 +143,19 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         ss << "/mnt/nfs_dir/" << std::put_time(&bt, "%Y-%m-%d-%S%M") << ".jpg";
         photo_save.save(ss.str());
 #endif
+    }else if (event->key() == Qt::Key_MenuKB){
+        if(!mp4_muxer.isRunning()){
+            auto now = std::chrono::system_clock::now();
+            auto in_time_t = std::chrono::system_clock::to_time_t(now);
+            std::tm bt = *std::localtime(&in_time_t);
+
+            std::stringstream ss;
+            ss << "/mnt/nfs_dir/" << std::put_time(&bt, "%Y-%m-%d-%S%M") << ".mp4";
+            LOG_DEBUG("MP4", ss.str());
+            mp4_muxer.save(ss.str());
+        }else{
+            mp4_muxer.finish();
+        }
     }
 }
 

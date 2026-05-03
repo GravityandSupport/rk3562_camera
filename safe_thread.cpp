@@ -42,7 +42,10 @@ void SafeThread::stop() {
     if (t.joinable()) t.join();
     LOG_DEBUG(thread_name_, "线程已退出");
 }
-
+bool SafeThread::isRunning() {
+    std::lock_guard<std::mutex> lock(mtx_);
+    return (state_ != State::Stopped);
+}
 void SafeThread::eventLoop() {
     // 设置线程名（Linux）
     std::string tname = thread_name_.substr(0, 15);

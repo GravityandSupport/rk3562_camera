@@ -18,7 +18,7 @@
 #include "h264_decoder.h"
 #include "photoalbum.h"
 #include "photosave.h"
-
+#include "mp4_muxer.h"
 extern V4L2_NV12_Capture capture;
 extern V4L2_NV12_Capture capture_33;
 extern H264_Encoder h264_encoder;
@@ -45,5 +45,5 @@ extern std::shared_ptr<PhotoAlbum> photo_album;
 
 extern PhotoSave photo_save;
 
-
+extern MP4_Muxer mp4_muxer;
 #endif // INTERFACE_H
