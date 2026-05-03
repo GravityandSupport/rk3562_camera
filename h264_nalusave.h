@@ -7,24 +7,21 @@
 #include "drmdumbbuffer.h"
 #include "EventBus.h"
 
+class H264_Encoder;
+
 class H264_NaluSave : public VideoBase
 {
 public:
-    void create();
+    void create(H264_Encoder* input_source);
+
+    bool save(const std::string& name);
 
     H264_NaluSave();
 protected:
     virtual void process_frames(VideoFramePtr frame) override;
 
 private:
-    class ImplDevice : public EventDevice{
-    public:
-        H264_NaluSave* instance = nullptr;
-        virtual void onMessage(const EventMsg& msg) override;
-    };
-    std::shared_ptr<ImplDevice> impl_device;
-
-    friend ImplDevice;
+    H264_Encoder* input_source_ = nullptr;
 
     SafeThread thread_;
     ThreadSafeBoundedQueue<VideoFramePtr> process_queue;

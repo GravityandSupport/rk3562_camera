@@ -42,10 +42,12 @@ void PC_UDP_ImageTrans::onConnect(){
     sendData(0x4000, {});
 //    udp_port = sin_port;
     h264_encoder.add_video(this);
+    h264_encoder.node_state.enable();
 }
 
 void PC_UDP_ImageTrans::onDisconnect(){
     h264_encoder.remove_video(this);
+    h264_encoder.node_state.disable();
 }
 
 

@@ -101,10 +101,12 @@ bool H264_Encoder::encodeFrame(const DrmDumbBuffer* input){
 }
 
 void H264_Encoder::process_frames(VideoDrmBufPtr frame){
-    ISlot* slot = frame->slot;
-    if(slot==nullptr) {return ;}
-    slot->retain();
-    process_queue.push(frame);
+    if(node_state.isEnabled()){
+        ISlot* slot = frame->slot;
+        if(slot==nullptr) {return ;}
+        slot->retain();
+        process_queue.push(frame);
+    }
 }
 
 bool H264_Encoder::start_encoder(int width, int height, int fps){
@@ -113,9 +115,6 @@ bool H264_Encoder::start_encoder(int width, int height, int fps){
     if (!initMPP()){
         return false;
     }
-
-    encode_status = EncodeStatus::Start;
-    if(parent_node){parent_node->set_enable(this, ChannelType::FRAME_DRMBUF, true);}
 
     thread_.set_loop_callback([this](SafeThread* self) ->bool{
         (void)self;
@@ -138,8 +137,6 @@ bool H264_Encoder::start_encoder(int width, int height, int fps){
 bool H264_Encoder::stop_encoder(){
     process_queue.close();
     thread_.stop();
-    encode_status = EncodeStatus::Stop;
-    if(parent_node){parent_node->set_enable(this, ChannelType::FRAME_DRMBUF, false);}
 
     m_mppApi->reset(m_mppCtx);
     mpp_destroy(m_mppCtx);

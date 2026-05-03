@@ -59,7 +59,7 @@ MainWindow::MainWindow(QWidget *parent)
     video_merge.add_video(&h264_encoder);
     video_merge.create(1024, 592);
 
-    h264_nalu_save.create();
+    h264_nalu_save.create(&h264_encoder);
     h264_encoder.start_encoder(1024, 592, 30);
     h264_encoder.add_video(&h264_nalu_save);
 
@@ -120,21 +120,14 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
             photo_album->hide();
         }
     }else if (event->key() == Qt::Key_VolumeDown) {
-#if 0
+#if 1
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
         std::tm bt = *std::localtime(&in_time_t);
 
-        std::vector<std::string> filename;
-        for(int i=0; i<5; i++){
-            std::stringstream ss;
-            ss << "/mnt/nfs_dir/" << std::put_time(&bt, "%Y-%m-%d-%S%M") << "-" << i  << ".h264";
-            filename.push_back(ss.str());
-        }
-        JsonWrapper js;
-        js.import("filename", filename);
-        EventBus::instance().publish("/video/h264/nalu_save", js.dump());
-        qDebug() << "按下了 Key_VolumeDown";
+        std::stringstream ss;
+        ss << "/mnt/nfs_dir/" << std::put_time(&bt, "%Y-%m-%d-%S%M") << ".h264";
+        h264_nalu_save.save(ss.str());
 #else
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);

@@ -17,10 +17,7 @@ extern "C" {
 class H264_Encoder : public VideoBase
 {
 public:
-    enum class EncodeStatus{
-        Stop, Start
-    };
-    EncodeStatus encode_status=EncodeStatus::Stop;
+    VideoNodeState node_state;
 
     H264_Encoder();
     virtual ~H264_Encoder() = default;
