@@ -28,6 +28,8 @@ public:
 
     Node setBigNode(const VideoBase* v, uint32_t nx, uint32_t ny, uint32_t nw, uint32_t nh);
     Node setSmallNode(const VideoBase* v, uint32_t nx, uint32_t ny, uint32_t nw, uint32_t nh);
+    const VideoBase* setBigNode(const VideoBase* v);
+    const VideoBase* setSmallNode(const VideoBase* v);
 
     VideoMerge(): process_queue(10){}
     virtual ~VideoMerge() = default;
@@ -37,6 +39,7 @@ private:
 
     Node big_source, small_source;
     Node set(Node& node, const VideoBase* v, uint32_t nx, uint32_t ny, uint32_t nw, uint32_t nh);
+    const VideoBase* set(Node& node, const VideoBase* v);
 
     uint32_t width_, height_;
     std::string drm_dev_;

@@ -50,7 +50,7 @@ void UVC_Monitor::start(){
                         std::shared_ptr<V4l2USBCamera> camera = std::make_shared<V4l2USBCamera>();
                         camera->add_video(&mjpeg_decoder);
                         mjpeg_decoder.add_video(&video_merge);
-                        video_merge_node = video_merge.setBigNode(&mjpeg_decoder, 0, 0, 1024, 592);
+                        video_merge_node = video_merge.setBigNode(&mjpeg_decoder);
 
                         camera->register_device(1920, 1072, 2, devnode);
                         cameras_[devnode] = camera;
@@ -65,7 +65,7 @@ void UVC_Monitor::start(){
                         mjpeg_decoder.remove_video(&video_merge);
                         camera->uninstall_device();
 
-                        video_merge.setBigNode(video_merge_node.video, 0, 0, 1024, 592);
+                        video_merge.setBigNode(video_merge_node);
 
                         cameras_.erase(it);
                     }

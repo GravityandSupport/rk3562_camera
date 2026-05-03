@@ -18,14 +18,24 @@ VideoMerge::Node VideoMerge::set(Node& node, const VideoBase* v, uint32_t nx, ui
     node.drm_buffer_->create(node.width_, node.height_, 12);
     return old_state;
 }
-
+const VideoBase* VideoMerge::set(Node& node, const VideoBase* v){
+    std::lock_guard<std::mutex> lock(mutex_);
+    const VideoBase* ret = node.video;
+    node.video = v;
+    return ret;
+}
 VideoMerge::Node VideoMerge::setBigNode(const VideoBase* v, uint32_t nx, uint32_t ny, uint32_t nw, uint32_t nh){
     return set(big_source, v, nx, ny, nw, nh);
 }
 VideoMerge::Node VideoMerge::setSmallNode(const VideoBase* v, uint32_t nx, uint32_t ny, uint32_t nw, uint32_t nh){
     return set(small_source, v, nx, ny, nw, nh);
 }
-
+const VideoBase* VideoMerge::setBigNode(const VideoBase* v){
+    return set(big_source, v);
+}
+const VideoBase* VideoMerge::setSmallNode(const VideoBase* v){
+    return set(small_source, v);
+}
 void VideoMerge::create(uint32_t width, uint32_t height,
             const std::string& drm_dev){
     width_ = width;

@@ -31,7 +31,7 @@ private:
 
     std::map<std::string, std::shared_ptr<V4l2USBCamera>> cameras_;
 
-    VideoMerge::Node video_merge_node;
+    const VideoBase* video_merge_node;
 
     bool supportsMJPG(const char* dev_name);
 };
