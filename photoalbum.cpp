@@ -32,7 +32,7 @@ PhotoAlbum::PhotoAlbum(const std::string& path, QWidget *parent) : QWidget(paren
     listWidget->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     listWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    listWidget->setSelectionMode(QAbstractItemView::NoSelection);
+    listWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     listWidget->setFrameShape(QFrame::NoFrame);
     listWidget->setFocusPolicy(Qt::NoFocus);
 
@@ -41,25 +41,11 @@ PhotoAlbum::PhotoAlbum(const std::string& path, QWidget *parent) : QWidget(paren
 
     connect(backButton.get(), &QPushButton::clicked,
             this, [=](){
-        if(load_path==path){
-            this->hide();
-        }else{
-            fs::path p(load_path);
-            load_path = p.parent_path().string();
-            loadPathFile(load_path);
-        }
+        onBackButtonClick();
     });
-
     connect(listWidget.get(), &QListWidget::itemDoubleClicked,
             this, [=](QListWidgetItem *item) {
-
-        std::string path = item->data(Qt::UserRole).toString().toStdString();
-        LOG_DEBUG("点击文件路径", path);
-
-        fs::path p(path);
-        if(fs::is_directory(p)){
-            loadPathFile(path);
-        }
+        onItemActivated(item);
     });
 }
 
@@ -81,7 +67,8 @@ void PhotoAlbum::create(){
             fs::path p(path);
             if(fs::is_directory(p)){
                 item->setIcon(QIcon("/mnt/nfs_dir/res/ui/folder.png"));
-            }else if(p.extension() == ".jpg"){
+            }else if(p.extension() == ".jpg" ||
+                     p.extension() == ".png"){
                 item->setIcon(QIcon(QString::fromStdString(p.string())));
             }else{
                 item->setIcon(QIcon("/mnt/nfs_dir/res/ui/unkowntype.png"));
@@ -139,7 +126,26 @@ void PhotoAlbum::create(){
         return false;
     });
 }
+void PhotoAlbum::onItemActivated(QListWidgetItem *item){
+    if(!item) return;
 
+    std::string path = item->data(Qt::UserRole).toString().toStdString();
+    LOG_DEBUG("点击文件路径", path);
+
+    fs::path p(path);
+    if(fs::is_directory(p)){
+        loadPathFile(path);
+    }
+}
+void PhotoAlbum::onBackButtonClick(){
+    if(load_path==path_){
+        this->hide();
+    }else{
+        fs::path p(load_path);
+        load_path = p.parent_path().string();
+        loadPathFile(load_path);
+    }
+}
 void PhotoAlbum::loadPathFile(const std::string& path){
     quit_.store(true, std::memory_order_relaxed);
     thread_.stop();
@@ -155,8 +161,33 @@ void PhotoAlbum::keyPressEvent(QKeyEvent *event)
 
     LOG_DEBUG("按键按下", event->key());
 
-    if (event->key() == Qt::Key_VolumeDown) {
+    if(event->key() == Qt::Key_VolumeUp){
+        onBackButtonClick();
+    }else if (event->key() == Qt::Key_MenuKB){
+        int count = listWidget->count();
+        if(count == 0) return;
 
+        int row = listWidget->currentRow();
+
+        // 如果没有选中任何项
+        if(row < 0) row = 0;
+        else row = (row + 1) % count;
+
+        listWidget->setCurrentRow(row);
+    }else if(event->key() == Qt::Key_VolumeDown){
+        int count = listWidget->count();
+        if(count == 0) return;
+
+        int row = listWidget->currentRow();
+
+        // 如果没有选中任何项
+        if(row < 0) row = 0;
+        else row = (row - 1 + count) % count;
+
+        listWidget->setCurrentRow(row);
+    }else if(event->key() == Qt::Key_Back){
+        QListWidgetItem *item = listWidget->currentItem();
+        onItemActivated(item);
     }
 }
 

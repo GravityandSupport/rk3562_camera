@@ -25,14 +25,16 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
 
-    void showEvent(QShowEvent *event);
-    void hideEvent(QHideEvent *event);
+    void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
 private:
     std::string path_;
 
 //    std::atomic<std::string> load_path;
     std::string load_path;
     std::atomic_bool quit_ = false;
+
+    int current_list_row;
 
     class ImplDevice : public QtEventDevice{
     public:
@@ -44,6 +46,9 @@ private:
 
     std::shared_ptr<QListWidget> listWidget;
     std::shared_ptr<QPushButton> backButton;
+
+    void onItemActivated(QListWidgetItem *item);
+    void onBackButtonClick();
 signals:
 
 };
