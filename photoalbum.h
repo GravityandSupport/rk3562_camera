@@ -11,6 +11,10 @@
 #include "drmdumbbuffer.h"
 #include "EventBus.h"
 #include "qteventdevice.h"
+#include "mjpeg_decoder.h"
+#include "DmaBufRenderer.h"
+#include "ImageDisplay.h"
+#include "videoplay.h"
 
 class PhotoAlbum : public QWidget
 {
@@ -19,6 +23,7 @@ public:
     void create();
 
     void loadPathFile(const std::string& path);
+
 
     explicit PhotoAlbum(const std::string& path, QWidget *parent = nullptr);
 protected:
@@ -46,6 +51,11 @@ private:
 
     std::shared_ptr<QListWidget> listWidget;
     std::shared_ptr<QPushButton> backButton;
+
+    std::shared_ptr<DmaBufRenderer> dmaBuf_render;
+    ImageDisplay image_display;
+
+    VideoPlay video_play;
 
     void onItemActivated(QListWidgetItem *item);
     void onBackButtonClick();

@@ -7,6 +7,7 @@
 #include <forward_list>
 #include <QMessageBox>
 
+
 namespace fs = std::experimental::filesystem;
 
 PhotoAlbum::PhotoAlbum(const std::string& path, QWidget *parent) : QWidget(parent), path_(path), load_path(path)
@@ -50,6 +51,14 @@ PhotoAlbum::PhotoAlbum(const std::string& path, QWidget *parent) : QWidget(paren
 }
 
 void PhotoAlbum::create(){
+    dmaBuf_render = std::make_shared<DmaBufRenderer>(this);
+    dmaBuf_render->resize(1024, 600);
+    dmaBuf_render->hide();
+
+    video_play.create(1024, 592, 4);
+    image_display.create(dmaBuf_render.get());
+    video_play.add_video(&image_display);
+
     impl_device = std::make_shared<ImplDevice>();
     impl_device->subscribe("/video/videoplay/create");
     impl_device->instance = this;
@@ -135,6 +144,9 @@ void PhotoAlbum::onItemActivated(QListWidgetItem *item){
     fs::path p(path);
     if(fs::is_directory(p)){
         loadPathFile(path);
+    }else if(p.extension() == ".jpg"){
+        dmaBuf_render->show();
+        video_play.decode_jpeg(p.string());
     }
 }
 void PhotoAlbum::onBackButtonClick(){
