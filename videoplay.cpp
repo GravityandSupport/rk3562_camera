@@ -1,5 +1,9 @@
 #include "videoplay.h"
 #include <fstream>
+#include <experimental/filesystem>
+#include "outLog.h"
+
+namespace fs = std::experimental::filesystem;
 
 VideoPlay::VideoPlay()
 {
@@ -45,6 +49,16 @@ void VideoPlay::process_frames(VideoDrmBufPtr frame){
         frames_ready(frame);
         slot->release();
     }
+}
+bool VideoPlay::decode(const std::string& filename){
+    mp4_demuxer.stop(); // 必须要先停止mp4解码，要不然显示会冲突
+    fs::path p(filename);
+    if(p.extension() == ".jpg"){
+        return decode_jpeg(p.string());
+    }else if(p.extension() == ".mp4"){
+        return decode_mp4(p.string());
+    }
+    return false;
 }
 bool VideoPlay::decode_mp4(const std::string& filename){
     if(mp4_demuxer.open(filename)){

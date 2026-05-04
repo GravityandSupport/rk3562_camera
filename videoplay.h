@@ -20,8 +20,7 @@ class VideoPlay : public VideoBase
 public:
     void create(int width, int height, uint32_t buffer_num);
 
-    bool decode_jpeg(const std::string& filename);
-    bool decode_mp4(const std::string& filename);
+    bool decode(const std::string& filename);
 
     VideoPlay();
 protected:
@@ -38,6 +37,9 @@ private:
     MJPEG_Decoder mjpeg_decoder;
     H264_Decoder h264_decoder;
     MP4_Demuxer mp4_demuxer;
+
+    bool decode_jpeg(const std::string& filename);
+    bool decode_mp4(const std::string& filename);
 };
 
 #endif // VIDEOPLAY_H

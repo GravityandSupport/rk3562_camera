@@ -18,6 +18,7 @@ class MP4_Demuxer : public VideoBase
 {
 public:
     bool open(const std::string& input_path);
+    void stop() {thread_.stop();};
 
     uint32_t width()       const { return width_; }
     uint32_t height()      const { return height_; }

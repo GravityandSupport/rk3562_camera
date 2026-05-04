@@ -12,6 +12,12 @@ void SafeThread::start(const std::string& name) {
         return;
     }
 
+    if (thread_.joinable()) {
+        lock.unlock();
+        thread_.join();
+        lock.lock();
+    }
+
     thread_name_ = name;
     state_ = State::Starting;
     quit_.store(false, std::memory_order_relaxed);

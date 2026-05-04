@@ -84,7 +84,6 @@ void MP4_Demuxer::close() {
     video_stream_idx_ = -1;
 }
 bool MP4_Demuxer::open(const std::string& input_path){
-    thread_.stop();
     close();
     init();
     input_path_ = input_path;
