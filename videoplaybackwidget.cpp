@@ -4,6 +4,7 @@
 #include "JsonWrapper.h"
 #include <experimental/filesystem>
 #include "outLog.h"
+#include "EventBus.h"
 
 namespace fs = std::experimental::filesystem;
 
@@ -17,6 +18,20 @@ VideoPlaybackWidget::VideoPlaybackWidget(QWidget *parent) : QWidget(parent)
     initLayout();
 }
 void VideoPlaybackWidget::initUi(){
+    filename_lable = new QLabel(this);
+    filename_lable->setStyleSheet(
+        "background-color: rgba(0, 0, 0, 100); " // 黑色半透明
+        "border-radius: 15px; "                 // 圆角半径
+        "color: white; "                        // 既然背景黑，文字建议设为白色
+        "padding-left: 10px;"                   // 防止文字紧贴圆角边框
+    );
+    filename_lable->setGeometry(0, 0, 600, 70);
+    filename_lable->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    QFont f = filename_lable->font();
+    f.setPointSize(18);
+    f.setBold(true);
+    filename_lable->setFont(f);
+
     m_btnLeft = std::make_shared<QPushButton>(this);
     m_btnRight = std::make_shared<QPushButton>(this);
     m_btnClose = std::make_shared<QPushButton>(this);
@@ -62,9 +77,11 @@ void VideoPlaybackWidget::initUi(){
     });
     connect(m_btnLeft.get(), &QPushButton::clicked,
             this, [=](){
+        EventBus::instance().publish("/video/videoplay/prev", "none");
     });
     connect(m_btnRight.get(), &QPushButton::clicked,
             this, [=](){
+        EventBus::instance().publish("/video/videoplay/next", "none");
     });
 }
 void VideoPlaybackWidget::initLayout()
@@ -126,7 +143,14 @@ void VideoPlaybackWidget::ImplDevice::onMessage(const EventMsg& msg){
         }
     }
 }
-
+bool VideoPlaybackWidget::decode(const std::string& filename){
+    if(1){
+        filename_lable->setText(QString::fromStdString(filename));
+        filename_lable->adjustSize();
+        return video_play.decode(filename);
+    }
+    return false;
+}
 
 void VideoPlaybackWidget::keyPressEvent(QKeyEvent *event)
 {
@@ -137,10 +161,10 @@ void VideoPlaybackWidget::keyPressEvent(QKeyEvent *event)
 
     if(event->key() == Qt::Key_VolumeUp){
         this->hide();
-    }else if (event->key() == Qt::Key_MenuKB){
-
-    }else if(event->key() == Qt::Key_VolumeDown){
-
+    }else if (event->key() == Qt::Key_VolumeDown){
+        EventBus::instance().publish("/video/videoplay/prev", "none");
+    }else if(event->key() == Qt::Key_MenuKB){
+        EventBus::instance().publish("/video/videoplay/next", "none");
     }else if(event->key() == Qt::Key_Back){
 
     }

@@ -58,37 +58,87 @@ PhotoAlbum::PhotoAlbum(const std::string& path, QWidget *parent) : QWidget(paren
 void PhotoAlbum::create(){
     impl_device = std::make_shared<ImplDevice>();
     impl_device->subscribe("/video/videoplay/create");
+    impl_device->subscribe("/video/videoplay/prev");
+    impl_device->subscribe("/video/videoplay/next");
     impl_device->instance = this;
+
     folder_icon_ = QIcon("/mnt/nfs_dir/res/ui/folder.png");
     mp4_icon_ = QIcon("/mnt/nfs_dir/res/ui/mp4.png");
     connect(impl_device.get(), &ImplDevice::messageReceived, this, [&](const QString& topic, const QString& payload){
 //        qDebug() << topic << ", " << payload << "\n";
 //        LOG_DEBUG("photo album", topic.toStdString(), payload.toStdString());
         (void)(topic);
+        if(topic=="/video/videoplay/create"){
+            JsonWrapper js(payload.toStdString());
+            std::string path;
+            if(js.get("filename", path)){
+                LOG_DEBUG("photo album", path);
+                QListWidgetItem *item = new QListWidgetItem;
 
-        JsonWrapper js(payload.toStdString());
-        std::string path;
-        if(js.get("filename", path)){
-            LOG_DEBUG("photo album", path);
-            QListWidgetItem *item = new QListWidgetItem;
+                fs::path p(path);
+                if(fs::is_directory(p)){
+                    item->setIcon(folder_icon_);
+                }else if(p.extension() == ".jpg" ||
+                         p.extension() == ".png"){
+                    item->setIcon(QIcon(QString::fromStdString(p.string())));
+                }else if(p.extension() == ".mp4"){
+                    item->setIcon(mp4_icon_);
+                }else{
+                    item->setIcon(QIcon("/mnt/nfs_dir/res/ui/unkowntype.png"));
+                }
 
-            fs::path p(path);
-            if(fs::is_directory(p)){
-                item->setIcon(folder_icon_);
-            }else if(p.extension() == ".jpg" ||
-                     p.extension() == ".png"){
-                item->setIcon(QIcon(QString::fromStdString(p.string())));
-            }else if(p.extension() == ".mp4"){
-                item->setIcon(mp4_icon_);
-            }else{
-                item->setIcon(QIcon("/mnt/nfs_dir/res/ui/unkowntype.png"));
+                item->setText(QString::fromStdString(p.filename().string()));
+                item->setTextAlignment(Qt::AlignHCenter); // 文字居中（非常重要）
+                item->setSizeHint(QSize(180, 140));
+                item->setData(Qt::UserRole, QString::fromStdString(p.string()));
+                listWidget->addItem(item);
             }
+        }else if(topic=="/video/videoplay/prev"){
+            int count = listWidget->count();
+            if (count == 0) return;
 
-            item->setText(QString::fromStdString(p.filename().string()));
-            item->setTextAlignment(Qt::AlignHCenter); // 文字居中（非常重要）
-            item->setSizeHint(QSize(180, 140));
-            item->setData(Qt::UserRole, QString::fromStdString(p.string()));
-            listWidget->addItem(item);
+            int row = listWidget->currentRow();
+            if (row < 0) row = 0;
+
+            for (int i = 0; i < count; ++i) {
+                row = (row - 1 + count) % count;
+
+                QListWidgetItem* item = listWidget->item(row);
+                QString path = item->data(Qt::UserRole).toString();
+
+                if (isValidMedia(path)) {
+                    listWidget->setCurrentRow(row);
+                    video_play_widget->decode(path.toStdString());
+//                    JsonWrapper js;
+//                    js.import("filename", path.toStdString());
+//                    LOG_DEBUG("phout album", path.toStdString());
+//                    EventBus::instance().publish("/video/videoplay/decode", js.dump());
+                    return;
+                }
+            }
+        }else if(topic=="/video/videoplay/next"){
+            int count = listWidget->count();
+            if (count == 0) return;
+
+            int row = listWidget->currentRow();
+            if (row < 0) row = 0;
+
+            for (int i = 0; i < count; ++i) {
+                row = (row + 1) % count;
+
+                QListWidgetItem* item = listWidget->item(row);
+                QString path = item->data(Qt::UserRole).toString();
+
+                if (isValidMedia(path)) {
+                    listWidget->setCurrentRow(row);
+                    video_play_widget->decode(path.toStdString());
+//                    JsonWrapper js;
+//                    js.import("filename", path.toStdString());
+//                    LOG_DEBUG("phout album", path.toStdString());
+//                    EventBus::instance().publish("/video/videoplay/decode", js.dump());
+                    return;
+                }
+            }
         }
 
     });
@@ -136,6 +186,13 @@ void PhotoAlbum::create(){
         return false;
     });
 }
+bool PhotoAlbum::isValidMedia(const QString& path)
+{
+    QString lower = path.toLower();
+    return lower.endsWith(".jpg") ||
+           lower.endsWith(".jpeg") ||
+           lower.endsWith(".mp4");
+}
 void PhotoAlbum::onItemActivated(QListWidgetItem *item){
     if(!item) return;
 
@@ -145,13 +202,13 @@ void PhotoAlbum::onItemActivated(QListWidgetItem *item){
     fs::path p(path);
     if(fs::is_directory(p)){
         loadPathFile(path);
-    }else if(p.extension() == ".jpg" ||
-             p.extension() == ".mp4"){
+    }else if(isValidMedia(QString::fromStdString(p.string()))){
         video_play_widget->show();
-        JsonWrapper js;
-        js.import("filename", p.string());
-        LOG_DEBUG("phout album", p.string());
-        EventBus::instance().publish("/video/videoplay/decode", js.dump());
+        video_play_widget->decode(p.string());
+//        JsonWrapper js;
+//        js.import("filename", p.string());
+//        LOG_DEBUG("phout album", p.string());
+//        EventBus::instance().publish("/video/videoplay/decode", js.dump());
     }
 }
 void PhotoAlbum::onBackButtonClick(){

@@ -54,6 +54,8 @@ private:
 
     void onItemActivated(QListWidgetItem *item);
     void onBackButtonClick();
+
+    bool isValidMedia(const QString& path);
 signals:
 
 };

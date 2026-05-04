@@ -8,12 +8,15 @@
 #include "videoplay.h"
 #include "event_device.h"
 #include <QKeyEvent>
+#include <QLabel>
 
 class VideoPlaybackWidget : public QWidget
 {
     Q_OBJECT
 public:
     void create();
+
+    bool decode(const std::string& filename);
 
     explicit VideoPlaybackWidget(QWidget *parent = nullptr);
 protected:
@@ -44,6 +47,8 @@ private:
 
     void initUi();
     void initLayout();
+
+    QLabel*         filename_lable;
 };
 
 #endif // VIDEOPLAYBACKWIDGET_H
