@@ -69,7 +69,7 @@ void MP4_Muxer::process_frames(VideoFramePtr frame){
 }
 bool MP4_Muxer::save(const std::string& name){
     if(thread_.isRunning()) {return false;}
-    bool ret = false;
+    bool ret = true;
     if(input_source_){input_source_->node_state.enable();}
     initialized_ = false;
     frame_count_ = 0;

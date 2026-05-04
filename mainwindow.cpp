@@ -2,7 +2,11 @@
 #include "ui_mainwindow.h"
 
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QLabel>
+#include <QDateTime>
+#include <QFont>
+#include <QResizeEvent>
 
 #include "tcp_device.h"
 #include "pc_udp_imagetrans.h"
@@ -85,6 +89,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     tcp_client.connect("192.168.31.149", 7777);
 
+    // ========== UI 控件初始化 ==========
+    setupUI();
+
+    // ========== UI 控件初始化 ==========
+
     photo_album = std::make_shared<PhotoAlbum>("/mnt/nfs_dir", this);
     photo_album->setGeometry(0, 0, 1024, 600);
     photo_album->hide();
@@ -103,6 +112,7 @@ MainWindow::MainWindow(QWidget *parent)
 #endif
 
 //    RgaControl::test();
+
 }
 
 MainWindow::~MainWindow()
@@ -141,9 +151,12 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
         std::stringstream ss;
         ss << "/mnt/nfs_dir/" << std::put_time(&bt, "%Y-%m-%d-%S%M") << ".jpg";
-        photo_save.save(ss.str());
+        if(photo_save.save(ss.str())){
+            showNotification(QString::fromStdString(std::string("照片已保存到")+ss.str()));
+        }
 #endif
     }else if (event->key() == Qt::Key_MenuKB){
+        static std::string path="none";
         if(!mp4_muxer.isRunning()){
             auto now = std::chrono::system_clock::now();
             auto in_time_t = std::chrono::system_clock::to_time_t(now);
@@ -151,10 +164,15 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
             std::stringstream ss;
             ss << "/mnt/nfs_dir/" << std::put_time(&bt, "%Y-%m-%d-%S%M") << ".mp4";
+            path = ss.str();
             LOG_DEBUG("MP4", ss.str());
-            mp4_muxer.save(ss.str());
+            if(mp4_muxer.save(ss.str())){
+                showRecordingTime(true);
+            }
         }else{
             mp4_muxer.finish();
+            showRecordingTime(false);
+            showNotification(QString::fromStdString(std::string("录像已保存到")+path));
         }
     }
 }
@@ -165,5 +183,222 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
             return;  // 忽略长按重复
 
     qDebug() << "按键释放:" << event->key();
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+
+    // 更新录像时长标签位置（左下角）
+    if (m_recordingTimeLabel)
+        m_recordingTimeLabel->move(14, height() - 34);
+
+    // 更新时间标签位置（右上角）
+    if (m_dateTimeLabel)
+        m_dateTimeLabel->setGeometry(0, 8, width() - 14, 28);
+
+    // 更新通知标签位置（居中）
+    if (m_notificationLabel && m_notificationLabel->isVisible()) {
+        m_notificationLabel->move((width() - m_notificationLabel->width()) / 2,
+                                  (height() - m_notificationLabel->height()) / 2);
+    }
+
+    // 更新右侧按钮位置（垂直居中）
+    if (m_btnAction1 && m_btnAction2) {
+        const int btnW = 80;
+        const int btnH = 44;
+        const int btnGap = 16;
+        int btnX = width() - btnW - 14;
+        int centerY = height() / 2;
+        m_btnAction1->move(btnX, centerY - btnH - btnGap / 2);
+        m_btnAction2->move(btnX, centerY + btnGap / 2);
+    }
+}
+
+// ====================================================================
+//  UI 初始化
+// ====================================================================
+static QLabel* createLabel(QWidget *parent, const QString &text,
+                           const QColor &color, int fontSize,
+                           Qt::Alignment align)
+{
+    QLabel *label = new QLabel(text, parent);
+    label->setStyleSheet(QString("color: %1; background: transparent;")
+                         .arg(color.name()));
+    QFont f = label->font();
+    f.setPointSize(fontSize);
+    f.setBold(true);
+    label->setFont(f);
+    label->setAlignment(align);
+    return label;
+}
+
+void MainWindow::setupUI()
+{
+    // ======== 1. 右上角 — 日期时间 ========
+    m_dateTimeLabel = createLabel(this, "----",
+                                  QColor("#00FF00"), 24,
+                                  Qt::AlignRight | Qt::AlignVCenter);
+    m_dateTimeLabel->setGeometry(0, 8, 1010, 28);   // 右上留边距
+
+    // ======== 2. 左下角 — 录像时长 ========
+    m_recordingTimeLabel = createLabel(this, "00:00",
+                                       QColor("#FF0000"), 20,
+                                       Qt::AlignLeft | Qt::AlignVCenter);
+    m_recordingTimeLabel->setGeometry(14, height() - 34, 240, 28);
+    m_recordingTimeLabel->hide();   // 默认隐藏
+
+    // ======== 3. 居中 — 通知提示 ========
+    m_notificationLabel = new QLabel(this);
+    m_notificationLabel->setStyleSheet(
+        "QLabel {"
+        "  color: #FFFFFF;"
+        "  background: rgba(0, 0, 0, 80);"
+        "  border: 2px solid #00FF00;"
+        "  border-radius: 8px;"
+        "  padding: 16px 32px;"
+        "}");
+    QFont nf = m_notificationLabel->font();
+    nf.setPointSize(18);
+    nf.setBold(true);
+    m_notificationLabel->setFont(nf);
+    m_notificationLabel->setAlignment(Qt::AlignCenter);
+    m_notificationLabel->setWordWrap(true);
+    m_notificationLabel->setFixedWidth(480);
+    m_notificationLabel->adjustSize();
+    // 居中定位（稍后在 resizeEvent 中动态更新）
+    m_notificationLabel->move((width() - m_notificationLabel->width()) / 2,
+                              (height() - m_notificationLabel->height()) / 2);
+    m_notificationLabel->hide();
+
+    // ======== 4. 右侧 — 两个按钮（垂直居中） ========
+    const int btnW = 80;
+    const int btnH = 44;
+    const int btnGap = 16;
+    int btnX = width() - btnW - 14;   // 右边缘留边距
+
+    m_btnAction1 = new QPushButton("单画面", this);
+    m_btnAction1->setFixedSize(btnW, btnH);
+    m_btnAction1->setStyleSheet(
+        "QPushButton {"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+        "    stop:0 #F7DC77, stop:1 #F7DC77);"
+        "  color: white;"
+        "  border: none;"
+        "  border-radius: 8px;"
+        "  font-size: 14px;"
+        "  font-weight: bold;"
+        "}"
+        "QPushButton:pressed {"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+        "    stop:0 #F59F42, stop:1 #F59F42);"
+        "}");
+
+    m_btnAction2 = new QPushButton("交换画面", this);
+    m_btnAction2->setFixedSize(btnW, btnH);
+    m_btnAction2->setStyleSheet(m_btnAction1->styleSheet());
+
+    // 垂直居中定位
+    int centerY = height() / 2;
+    m_btnAction1->move(btnX, centerY - btnH - btnGap / 2);
+    m_btnAction2->move(btnX, centerY + btnGap / 2);
+
+    // ======== 5. 定时器 ========
+    m_clockTimer = new QTimer(this);
+    connect(m_clockTimer, &QTimer::timeout, this, &MainWindow::onClockTick);
+    m_clockTimer->start(1000);   // 每秒更新
+    onClockTick();               // 立即显示一次
+
+    m_recordingTimer = new QTimer(this);
+    connect(m_recordingTimer, &QTimer::timeout, this, &MainWindow::onRecordingTick);
+
+    m_notificationTimer = new QTimer(this);
+    m_notificationTimer->setSingleShot(true);
+    connect(m_notificationTimer, &QTimer::timeout,
+            this, &MainWindow::onNotificationTimeout);
+}
+
+// ====================================================================
+//  录像时长显示
+// ====================================================================
+void MainWindow::showRecordingTime(bool show)
+{
+    m_recordingTimeLabel->setVisible(show);
+    if (show) {
+        m_recordingSeconds = 0;
+        m_recordingTimeLabel->setText("00:00");
+        m_recordingTimer->start(1000);
+    } else {
+        m_recordingTimer->stop();
+    }
+}
+
+void MainWindow::updateRecordingTime(int seconds)
+{
+    m_recordingSeconds = seconds;
+    int mm = seconds / 60;
+    int ss = seconds % 60;
+    m_recordingTimeLabel->setText(QString("录像中%1:%2")
+        .arg(mm, 2, 10, QChar('0'))
+        .arg(ss, 2, 10, QChar('0')));
+}
+
+void MainWindow::resetRecordingTime()
+{
+    m_recordingTimer->stop();
+    m_recordingSeconds = 0;
+    m_recordingTimeLabel->setText("00:00");
+    m_recordingTimeLabel->hide();
+}
+
+void MainWindow::onRecordingTick()
+{
+    m_recordingSeconds++;
+    updateRecordingTime(m_recordingSeconds);
+}
+
+// ====================================================================
+//  通知提示
+// ====================================================================
+void MainWindow::showNotification(const QString &text, int durationMs)
+{
+    m_notificationLabel->setText(text);
+    m_notificationLabel->adjustSize();
+    // 确保宽度不超过设定值
+    if (m_notificationLabel->width() > 480)
+        m_notificationLabel->setFixedWidth(480);
+    m_notificationLabel->adjustSize();
+
+    // 居中
+    m_notificationLabel->move((width() - m_notificationLabel->width()) / 2,
+                              (height() - m_notificationLabel->height()) / 2);
+    m_notificationLabel->show();
+    m_notificationLabel->raise();
+
+    // 自动隐藏
+    m_notificationTimer->stop();
+    if (durationMs > 0)
+        m_notificationTimer->start(durationMs);
+}
+
+void MainWindow::hideNotification()
+{
+    m_notificationTimer->stop();
+    m_notificationLabel->hide();
+}
+
+void MainWindow::onNotificationTimeout()
+{
+    m_notificationLabel->hide();
+}
+
+// ====================================================================
+//  时钟
+// ====================================================================
+void MainWindow::onClockTick()
+{
+    QDateTime now = QDateTime::currentDateTime();
+    QString dt = now.toString("yyyy-MM-dd HH:mm:ss");
+    m_dateTimeLabel->setText(dt);
 }
 
