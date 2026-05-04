@@ -17,8 +17,13 @@ void VideoPlay::create(int width, int height, uint32_t buffer_num){
     });
 
     mjpeg_decoder.add_video(this);
+
+    h264_decoder.create(1920, 1080, 2);
+    h264_decoder.add_video(this);
+    mp4_demuxer.add_video(&h264_decoder);
 }
 void VideoPlay::process_frames(VideoDrmBufPtr frame){
+    LOG_DEBUG("DEBUG");
     DrmDumbBuffer* src_drm = frame->buffer;
     DrmDumbBuffer* dst_drm;
 
@@ -40,6 +45,13 @@ void VideoPlay::process_frames(VideoDrmBufPtr frame){
         frames_ready(frame);
         slot->release();
     }
+}
+bool VideoPlay::decode_mp4(const std::string& filename){
+    if(mp4_demuxer.open(filename)){
+        mp4_demuxer.dump_info();
+        return true;
+    }
+    return false;
 }
 bool VideoPlay::decode_jpeg(const std::string& filename)
 {

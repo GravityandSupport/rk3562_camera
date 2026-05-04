@@ -12,6 +12,8 @@
 #include "mjpeg_decoder.h"
 #include "DmaBufRenderer.h"
 #include "ImageDisplay.h"
+#include "h264_decoder.h"
+#include "mp4_demuxer.h"
 
 class VideoPlay : public VideoBase
 {
@@ -19,7 +21,7 @@ public:
     void create(int width, int height, uint32_t buffer_num);
 
     bool decode_jpeg(const std::string& filename);
-
+    bool decode_mp4(const std::string& filename);
 
     VideoPlay();
 protected:
@@ -34,6 +36,8 @@ private:
     PoolBuffer<DrmDumbBuffer, 4> pool_buffer;
 
     MJPEG_Decoder mjpeg_decoder;
+    H264_Decoder h264_decoder;
+    MP4_Demuxer mp4_demuxer;
 };
 
 #endif // VIDEOPLAY_H

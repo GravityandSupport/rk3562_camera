@@ -122,6 +122,8 @@ void VideoPlaybackWidget::ImplDevice::onMessage(const EventMsg& msg){
             fs::path p(filename);
             if(p.extension() == ".jpg"){
                 instance->video_play.decode_jpeg(p.string());
+            }else if(p.extension() == ".mp4"){
+                instance->video_play.decode_mp4(p.string());
             }
         }
     }

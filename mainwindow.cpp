@@ -69,7 +69,7 @@ MainWindow::MainWindow(QWidget *parent)
 //    mp4_muxer.save("xxx");
 #endif
 
-    h264_decoder.create(1024, 592, 2);
+//    h264_decoder.create(1024, 592, 2);
 //    h264_encoder.add_video(&h264_decoder);
 
     dmaBuf_render = std::make_shared<DmaBufRenderer>(this);

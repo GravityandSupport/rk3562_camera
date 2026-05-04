@@ -207,6 +207,13 @@ bool H264_Decoder::decode_frame(uint8_t* data, size_t length){
 //                LOG_DEBUG("h264 decoder", width, height, hor_stride, ver_stride, buf_size, index);
                 drm_buf[index]->bytesused(hor_stride*ver_stride*3/2);
 
+                VideoDrmBufPtr drm_frame = std::make_shared<VideoDrmBuf>();
+                drm_frame->video = this;
+                drm_frame->buffer = drm_buf[index].get();
+                drm_frame->buffer->setWidth(hor_stride); // mjpeg解码后，并不会使用使用全部的内存空间，所以图像的宽高和内存的宽高并不匹配
+                drm_frame->buffer->setHeight(ver_stride);
+                drm_frame->buffer->setBpp(12);
+                frames_ready(drm_frame);
 //                if(frame_index%100==0 && frame_index<1000){
 //                    std::ostringstream oss;
 //                    oss << "/mnt/nfs_dir/h264_decode-" << frame_index << ".yuv";

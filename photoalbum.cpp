@@ -141,7 +141,8 @@ void PhotoAlbum::onItemActivated(QListWidgetItem *item){
     fs::path p(path);
     if(fs::is_directory(p)){
         loadPathFile(path);
-    }else if(p.extension() == ".jpg"){
+    }else if(p.extension() == ".jpg" ||
+             p.extension() == ".mp4"){
         video_play_widget->show();
         JsonWrapper js;
         js.import("filename", p.string());
