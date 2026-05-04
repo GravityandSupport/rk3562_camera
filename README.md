@@ -123,11 +123,18 @@ flowchart TD
     end
     文件预览文件为JPG文件-->文件预览解码JPEG文件
 
+    subgraph 文件预览ffmpeg封装
+        direction TD
+        文件预览ffmpeg封装读取本地mp4文件[读取本地mp4文件]
+        文件预览ffmpeg封装获取h264裸流[获取h264裸流]
+        文件预览ffmpeg封装读取本地mp4文件-->文件预览ffmpeg封装获取h264裸流
+    end
+    文件预览文件为MP4文件-->文件预览ffmpeg封装
     subgraph 文件预览解码MP4文件
         direction TD
+        文件预览ffmpeg封装获取h264裸流-->文件预览解码MP4文件解码器输入
         文件预览解码MP4文件解码器输入[解码器输入]-->文件预览解码MP4文件解码器输出[解码器输出]
     end
-    文件预览文件为MP4文件-->文件预览解码MP4文件
 
     subgraph 文件系统预览
         文件预览解码JPEG文件解码器输出-->文件系统预览OPENGL输入
@@ -199,7 +206,6 @@ flowchart TD
     end
     tcp服务器数据输出-->pc端udp图传派生类
     h264编码完成-->pc端udp图传h264裸流发送
-
 
 ```
 
