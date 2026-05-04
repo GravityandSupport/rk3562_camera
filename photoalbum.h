@@ -37,7 +37,8 @@ private:
     std::string load_path;
     std::atomic_bool quit_ = false;
 
-    int current_list_row;
+    QIcon folder_icon_;
+    QIcon mp4_icon_;
 
     class ImplDevice : public QtEventDevice{
     public:

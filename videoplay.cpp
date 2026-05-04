@@ -18,7 +18,7 @@ void VideoPlay::create(int width, int height, uint32_t buffer_num){
 
     mjpeg_decoder.add_video(this);
 
-    h264_decoder.create(1920, 1080, 2);
+    h264_decoder.create(1920, 1080, 2); // 缓冲区数量最好大一些，因为opengl可能和编码器会冲突
     h264_decoder.add_video(this);
     mp4_demuxer.add_video(&h264_decoder);
 }

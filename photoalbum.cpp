@@ -59,6 +59,8 @@ void PhotoAlbum::create(){
     impl_device = std::make_shared<ImplDevice>();
     impl_device->subscribe("/video/videoplay/create");
     impl_device->instance = this;
+    folder_icon_ = QIcon("/mnt/nfs_dir/res/ui/folder.png");
+    mp4_icon_ = QIcon("/mnt/nfs_dir/res/ui/mp4.png");
     connect(impl_device.get(), &ImplDevice::messageReceived, this, [&](const QString& topic, const QString& payload){
 //        qDebug() << topic << ", " << payload << "\n";
 //        LOG_DEBUG("photo album", topic.toStdString(), payload.toStdString());
@@ -72,10 +74,12 @@ void PhotoAlbum::create(){
 
             fs::path p(path);
             if(fs::is_directory(p)){
-                item->setIcon(QIcon("/mnt/nfs_dir/res/ui/folder.png"));
+                item->setIcon(folder_icon_);
             }else if(p.extension() == ".jpg" ||
                      p.extension() == ".png"){
                 item->setIcon(QIcon(QString::fromStdString(p.string())));
+            }else if(p.extension() == ".mp4"){
+                item->setIcon(mp4_icon_);
             }else{
                 item->setIcon(QIcon("/mnt/nfs_dir/res/ui/unkowntype.png"));
             }

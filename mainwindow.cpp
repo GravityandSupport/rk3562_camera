@@ -54,7 +54,7 @@ MainWindow::MainWindow(QWidget *parent)
     video_merge.setBigNode(&capture_33, 0, 0, 1024, 592);
 #endif
     capture.add_video(&video_merge);
-    video_merge.setSmallNode(&capture, 0, 0, 192, 144);
+    video_merge.setSmallNode(&capture, 0, 0, 320, 224);
 
     video_merge.add_video(&h264_encoder);
     video_merge.create(1024, 592);
