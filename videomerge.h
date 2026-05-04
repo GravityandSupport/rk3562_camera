@@ -30,6 +30,11 @@ public:
     Node setSmallNode(const VideoBase* v, uint32_t nx, uint32_t ny, uint32_t nw, uint32_t nh);
     const VideoBase* setBigNode(const VideoBase* v);
     const VideoBase* setSmallNode(const VideoBase* v);
+    void replaceNode(const VideoBase* oldNode, const VideoBase* newNode);
+    void setSwapNode();
+
+    void setChannelCount(int count) {m_channelCount.store(count, std::memory_order_relaxed);}
+    int getChannelCount() const {return m_channelCount.load(std::memory_order_relaxed);}
 
     VideoMerge(): process_queue(10){}
     virtual ~VideoMerge() = default;
@@ -51,5 +56,7 @@ private:
     PoolBuffer<DrmDumbBuffer, 10> pool_buffer;
 
     ThreadSafeBoundedQueue<VideoDrmBufPtr> process_queue;
+
+    std::atomic<int> m_channelCount{1}; // 使用原子变量确保多线程安全，初始化为 1 (单通道) 或 2 (双通道)
 };
 

@@ -277,7 +277,7 @@ void MainWindow::setupUI()
     const int btnGap = 16;
     int btnX = width() - btnW - 14;   // 右边缘留边距
 
-    m_btnAction1 = new QPushButton("单画面", this);
+    m_btnAction1 = new QPushButton("画面数量", this);
     m_btnAction1->setFixedSize(btnW, btnH);
     m_btnAction1->setStyleSheet(
         "QPushButton {"
@@ -294,9 +294,21 @@ void MainWindow::setupUI()
         "    stop:0 #F59F42, stop:1 #F59F42);"
         "}");
 
-    m_btnAction2 = new QPushButton("交换画面", this);
+    m_btnAction2 = new QPushButton("画面切换", this);
     m_btnAction2->setFixedSize(btnW, btnH);
     m_btnAction2->setStyleSheet(m_btnAction1->styleSheet());
+
+    connect(m_btnAction1, &QPushButton::clicked, this, [&](){
+        int channel_count = video_merge.getChannelCount();
+        if(channel_count==1){
+            video_merge.setChannelCount(2);
+        }else if(channel_count==2){
+            video_merge.setChannelCount(1);
+        }
+    });
+    connect(m_btnAction2, &QPushButton::clicked, this, [&](){
+        video_merge.setSwapNode();
+    });
 
     // 垂直居中定位
     int centerY = height() / 2;

@@ -36,6 +36,20 @@ const VideoBase* VideoMerge::setBigNode(const VideoBase* v){
 const VideoBase* VideoMerge::setSmallNode(const VideoBase* v){
     return set(small_source, v);
 }
+void VideoMerge::replaceNode(const VideoBase* oldNode, const VideoBase* newNode){
+    std::lock_guard<std::mutex> lock(mutex_);
+    if(oldNode==big_source.video){
+        big_source.video = newNode;
+    }else if(oldNode==small_source.video){
+        small_source.video = newNode;
+    }
+}
+void VideoMerge::setSwapNode(){
+    std::lock_guard<std::mutex> lock(mutex_);
+    const VideoBase* t = big_source.video;
+    big_source.video = small_source.video;
+    small_source.video = t;
+}
 void VideoMerge::create(uint32_t width, uint32_t height,
             const std::string& drm_dev){
     width_ = width;
@@ -81,22 +95,41 @@ void VideoMerge::process_frames(VideoDrmBufPtr frame){
     source->status = true;
 
 //    LOG_DEBUG("video merge", pool_buffer.free_count(), big_source.status, small_source.status, src_drm->size(), dst_drm->size());
-    if(big_source.status && small_source.status){
-        big_source.status=false;
-        small_source.status=false;
+    int channel_count = getChannelCount();
+    if(channel_count==1){
+        if(big_source.status){
+            big_source.status=false;
 
-        ISlot* slot = pool_buffer.try_acquire();
-        if(slot==nullptr) { LOG_DEBUG("video merge", "无帧可用"); return ;}
+            ISlot* slot = pool_buffer.try_acquire();
+            if(slot==nullptr) { LOG_DEBUG("video merge", "无帧可用"); return ;}
 
-        DrmDumbBuffer* drm_buffer = static_cast<DrmDumbBuffer*>(slot->getdata());
-        if(drm_buffer==nullptr) {return ;}
+            DrmDumbBuffer* drm_buffer = static_cast<DrmDumbBuffer*>(slot->getdata());
+            if(drm_buffer==nullptr) {return ;}
 
-        RgaControl::resize_rect(big_source.drm_buffer_.get(), drm_buffer, RgaControl::Format::NV12, RgaControl::Format::NV12, big_source.rect);
-        RgaControl::resize_rect(small_source.drm_buffer_.get(), drm_buffer, RgaControl::Format::NV12, RgaControl::Format::NV12, small_source.rect);
-        VideoDrmBufPtr frame = std::make_shared<VideoDrmBuf>();
-        frame->video = this;
-        frame->slot = slot;
-        process_queue.push(frame);
+            RgaControl::resize_rect(big_source.drm_buffer_.get(), drm_buffer, RgaControl::Format::NV12, RgaControl::Format::NV12, big_source.rect);
+            VideoDrmBufPtr frame = std::make_shared<VideoDrmBuf>();
+            frame->video = this;
+            frame->slot = slot;
+            process_queue.push(frame);
+        }
+    }else if(channel_count==2){
+        if(big_source.status && small_source.status){
+            big_source.status=false;
+            small_source.status=false;
+
+            ISlot* slot = pool_buffer.try_acquire();
+            if(slot==nullptr) { LOG_DEBUG("video merge", "无帧可用"); return ;}
+
+            DrmDumbBuffer* drm_buffer = static_cast<DrmDumbBuffer*>(slot->getdata());
+            if(drm_buffer==nullptr) {return ;}
+
+            RgaControl::resize_rect(big_source.drm_buffer_.get(), drm_buffer, RgaControl::Format::NV12, RgaControl::Format::NV12, big_source.rect);
+            RgaControl::resize_rect(small_source.drm_buffer_.get(), drm_buffer, RgaControl::Format::NV12, RgaControl::Format::NV12, small_source.rect);
+            VideoDrmBufPtr frame = std::make_shared<VideoDrmBuf>();
+            frame->video = this;
+            frame->slot = slot;
+            process_queue.push(frame);
+        }
     }
 }
 

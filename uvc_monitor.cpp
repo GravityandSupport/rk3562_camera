@@ -65,7 +65,7 @@ void UVC_Monitor::start(){
                         mjpeg_decoder.remove_video(&video_merge);
                         camera->uninstall_device();
 
-                        video_merge.setBigNode(video_merge_node);
+                        video_merge.replaceNode(&mjpeg_decoder, video_merge_node);
 
                         cameras_.erase(it);
                     }
